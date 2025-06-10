@@ -14,6 +14,7 @@
 #include "coords.h"
 #include "lockpin.h"
 #include "gps_server.h"
+#include "starcam_downlink.h"
 
 int exiting = 0;
 extern int shutting_down; // set this to one to shutdown star camera
@@ -89,6 +90,7 @@ void exec_command(char* input) {
 		    }else{
 			mvprintw(0, 0, "bvexcam mode: Taking Images\n");
 		    }
+		    mvprintw(1, 50, "Image saving: %s", all_camera_params.save_image ? "ON" : "OFF");
                     mvprintw(1, 0, "Raw time (sec): %.1f\n", all_astro_params.rawtime);
                     mvprintw(2, 0, "Observed RA (deg): %lf\n", all_astro_params.ra);
                     mvprintw(3, 0, "Observed DEC (deg): %lf\n", all_astro_params.dec);
@@ -101,6 +103,20 @@ void exec_command(char* input) {
 		    mvprintw(10,0, "Star Camera Longitude (deg): %f\n", all_astro_params.longitude);
 		    mvprintw(11,0, "Star Camera Latitude (deg): %f\n", all_astro_params.latitude);
 		    mvprintw(12,0, "Star Camera Altitude (m): %f\n", all_astro_params.hm);
+		    
+		    // Add starcam downlink status
+		    int images_available, server_running, transmission_active;
+		    uint32_t bandwidth_usage;
+		    time_t latest_timestamp;
+		    if (getStarcamStatus(&images_available, &server_running, &bandwidth_usage, &transmission_active, &latest_timestamp)) {
+		        mvprintw(13,0, "Downlink Server: %s\n", server_running ? "ACTIVE" : "INACTIVE");
+		        mvprintw(14,0, "Images Available: %d\n", images_available);
+		        mvprintw(15,0, "Latest Image: %ld\n", latest_timestamp);
+		        mvprintw(16,0, "Bandwidth Usage: %u kbps\n", bandwidth_usage);
+		        mvprintw(17,0, "Transmission: %s\n", transmission_active ? "ACTIVE" : "IDLE");
+		    } else {
+		        mvprintw(13,0, "Downlink Server: DISABLED\n");
+		    }
                 }
                 input = getch();
             }
@@ -119,14 +135,30 @@ void exec_command(char* input) {
     } else if (strcmp(cmd, "bvexcam_solve_start")==0){
 	if (config.bvexcam.enabled){
 	   all_camera_params.solve_img = 1;
+	   printf("bvexcam astrometry solving started.\n");
 	}else{
 	   printf("bvexcam is not enabled.\n");
 	}
     } else if (strcmp(cmd, "bvexcam_solve_stop")==0){
 	if (config.bvexcam.enabled){
 	   all_camera_params.solve_img = 0;
+	   printf("bvexcam astrometry solving stopped.\n");
 	}else{
 	   printf("bvexcam is not enabled. \n");
+	}
+    } else if (strcmp(cmd, "bvexcam_save_start")==0){
+	if (config.bvexcam.enabled){
+	   all_camera_params.save_image = 1;
+	   printf("bvexcam image saving started.\n");
+	}else{
+	   printf("bvexcam is not enabled.\n");
+	}
+    } else if (strcmp(cmd, "bvexcam_save_stop")==0){
+	if (config.bvexcam.enabled){
+	   all_camera_params.save_image = 0;
+	   printf("bvexcam image saving stopped.\n");
+	}else{
+	   printf("bvexcam is not enabled.\n");
 	}
     } else if (strcmp(cmd, "accl_status") == 0) {
         if (config.accelerometer.enabled) {
@@ -281,6 +313,9 @@ void exec_command(char* input) {
                     		mvprintw(33, 0, "Altitude (deg): %.15f\n", all_astro_params.alt);
                     		mvprintw(34, 0, "Azimuth (deg): %.15f\n", all_astro_params.az);
                 	}
+                	mvprintw(35, 0, "Image saving: %s | Astrometry: %s", 
+                         all_camera_params.save_image ? "ON" : "OFF",
+                         all_camera_params.solve_img ? "ON" : "OFF");
 		}
 
 		c = getch();
@@ -406,6 +441,21 @@ void exec_command(char* input) {
 		printf("Heading:%f\n",curr_gps.gps_head);
 	}else{
 		printf("GPS server not enabled\n");
+	}
+
+    }else if (strcmp(cmd,"starcam_downlink_status")==0){
+	int images_available, server_running, transmission_active;
+	uint32_t bandwidth_usage;
+	time_t latest_timestamp;
+	if (getStarcamStatus(&images_available, &server_running, &bandwidth_usage, &transmission_active, &latest_timestamp)) {
+		printf("Starcam Downlink Status:\n");
+		printf("  Server: %s\n", server_running ? "ACTIVE" : "INACTIVE");
+		printf("  Images Available: %d\n", images_available);
+		printf("  Latest Image Timestamp: %ld\n", latest_timestamp);
+		printf("  Bandwidth Usage: %u kbps\n", bandwidth_usage);
+		printf("  Current Transmission: %s\n", transmission_active ? "ACTIVE" : "IDLE");
+	} else {
+		printf("Starcam downlink is not enabled.\n");
 	}
 
     }else{

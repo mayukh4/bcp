@@ -43,6 +43,7 @@ target_link_libraries(main
     m
     astrometry
     glib-2.0
+    jpeg
     /usr/local/lib/libsofa_c.a
     /usr/local/lib/libsoem.a
 )

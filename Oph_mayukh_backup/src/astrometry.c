@@ -1,3 +1,6 @@
+#define _GNU_SOURCE
+#define _DEFAULT_SOURCE
+#define _USE_MATH_DEFINES
 #include <stdlib.h>
 #include <math.h>
 #include <astrometry/os-features.h>
@@ -24,7 +27,6 @@
 #include "file_io_Oph.h"
 #include "gps_server.h"
 
-#define _USE_MATH_DEFINES
 /* Longitude and latitude constants (deg) */
 #define backyard_lat  44.224327
 #define backyard_long -76.498007

@@ -22,6 +22,7 @@ typedef struct bvexcam_conf {
     char* workdir;
     char* configdir;
     int t_exp;
+    int save_image;
     float lat;
     float lon;
     double alt;
@@ -80,13 +81,25 @@ typedef struct lockpin_conf{
 	int duration;
 } lockpin_conf;
 
-typedef struct server_conf{
+typedef struct gps_server_conf{
 	int enabled;
 	char *logfile;
 	char *ip;
 	int port;
 	int timeout;
-}server_conf;
+} gps_server_conf;
+
+typedef struct starcam_downlink_conf{
+	int enabled;
+	char *logfile;
+	int port;
+	int compression_quality;
+	int chunk_size;
+	int max_bandwidth_kbps;
+	int image_timeout_sec;
+	char *workdir;
+	char *notification_file;
+} starcam_downlink_conf;
 
 typedef struct conf_params {
     struct main_conf main;
@@ -95,8 +108,8 @@ typedef struct conf_params {
     struct motor_conf motor;
     struct lazisusan_conf lazisusan;
     struct lockpin_conf lockpin;
-    struct server_conf gps_server;
-    struct server_conf server;
+    struct gps_server_conf gps_server;
+    struct starcam_downlink_conf starcam_downlink;
 } conf_params;
 
 extern struct conf_params config;

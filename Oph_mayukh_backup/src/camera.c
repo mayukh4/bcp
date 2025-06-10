@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+#define _DEFAULT_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -16,6 +18,10 @@
 #include "matrix.h"
 #include "file_io_Oph.h"
 #include "gps_server.h"
+
+// Forward declaration for notification function
+void notifyImageServer(const char* image_path, int blob_count, time_t timestamp, 
+                      void* raw_data, int width, int height);
 
 void merge(double A[], int p, int q, int r, double X[],double Y[]);
 void part(double A[], int p, int r, double X[], double Y[]);
@@ -133,6 +139,8 @@ int initCamera(FILE* log) {
     unsigned int enable = 1;   
 
     all_camera_params.exposure_time = config.bvexcam.t_exp;
+    // Initialize save_image from config file
+    all_camera_params.save_image = config.bvexcam.save_image;
     // load the camera parameters
     if (loadCamera(log) < 0) {
         return -1;
@@ -1506,7 +1514,7 @@ int doCameraAndAstrometry(FILE* log) {
         	fprintf(log,"[%ld][camera.c][doCameraAndAstrometry] Time going into Astrometry.net: %s\n", time(NULL), buff);
 
         	if (fprintf(fptr, "\r%li|%s|", tv.tv_sec, buff) < 0) {
-            		fprintf(log, "[%ld][camera.c][doCameraAndAstrometry] Unable to write time and blob count to observing "
+            		fprintf(log, "[%ld][camera.c][doCamreaAndAstrometry] Unable to write time and blob count to observing "
                             "file: %s.\n", time(NULL), strerror(errno));
         	}
         	fflush(fptr);
@@ -1523,7 +1531,7 @@ int doCameraAndAstrometry(FILE* log) {
 
         	// get current time right after solving
         	if (clock_gettime(CLOCK_REALTIME, &camera_tp_end) == -1) {
-            		fprintf(log, "[%ld][camera.c][doCameraAndAstrometry] Error ending timer: %s.\n", time(NULL), strerror(errno));
+            		fprintf(log, "[%ld][camera.c][doCamreaAndAstrometry] Error ending timer: %s.\n", time(NULL), strerror(errno));
         	}
 
         	// calculate time it took camera program to run in nanoseconds
@@ -1543,19 +1551,29 @@ int doCameraAndAstrometry(FILE* log) {
 	}
     }
 
-    // save image for future reference
-    ImageFileParams.pwchFileName = filename;
-    if (is_ImageFile(camera_handle, IS_IMAGE_FILE_CMD_SAVE, 
-                    (void *) &ImageFileParams, sizeof(ImageFileParams)) == -1) {
-        const char * last_error_str = printCameraError();
-        fprintf(log,"[%ld][camera.c][doCameraAndAstrometry] Failed to save image: %s\n", time(NULL), last_error_str);
-    }
-
-    wprintf(L"Saving to \"%s\"\n", filename);
-    // unlink whatever the latest saved image was linked to before
-    unlink(join_path(config.bvexcam.workdir,"/latest_saved_image.bmp"));
-    // sym link current date to latest image for live Kst updates
-    symlink(date, join_path(config.bvexcam.workdir,"/latest_saved_image.bmp"));
+    // save image for future reference (if enabled via CLI or config)
+    if (all_camera_params.save_image) {
+        ImageFileParams.pwchFileName = filename;
+        if (is_ImageFile(camera_handle, IS_IMAGE_FILE_CMD_SAVE, 
+                        (void *) &ImageFileParams, sizeof(ImageFileParams)) == -1) {
+            const char * last_error_str = printCameraError();
+            fprintf(log,"[%ld][camera.c][doCameraAndAstrometry] Failed to save image: %s\n", time(NULL), last_error_str);
+        } else {
+            wprintf(L"Saving to \"%s\"\n", filename);
+        }
+        
+        // unlink whatever the latest saved image was linked to before
+        unlink(join_path(config.bvexcam.workdir,"/latest_saved_image.bmp"));
+        // sym link current date to latest image for live Kst updates
+        symlink(date, join_path(config.bvexcam.workdir,"/latest_saved_image.bmp"));
+         } else {
+         if (verbose) {
+             printf("Image saving disabled - skipping save operation\n");
+         }
+     }
+    
+    // Notify image server of new image for downlink
+    notifyImageServer(date, blob_count, tv.tv_sec, output_buffer, CAMERA_WIDTH, CAMERA_HEIGHT);
 
     // make a table of blobs for Kst
     if (all_camera_params.solve_img){

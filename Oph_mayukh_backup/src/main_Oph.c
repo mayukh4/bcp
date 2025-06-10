@@ -16,7 +16,7 @@
 #include "lazisusan.h"
 #include "lockpin.h"
 #include "gps_server.h"
-#include "server.h"
+#include "starcam_downlink.h"
 
 // This is the main struct that stores all the config parameters
 struct conf_params config;
@@ -27,7 +27,6 @@ extern int * astro_ptr; // Pointer for returning from astrometry thread
 extern FILE* motor_log; //motor log
 extern FILE* ls_log;
 extern FILE* gps_server_log;
-extern FILE* server_log;
 extern AxesModeStruct axes_mode;//Pointing mode
 extern int ready;//This flag keeps track of the motor thread being ready or not
 extern int stop;//This flag is the queue to shut down the motor
@@ -37,12 +36,9 @@ extern int motor_off;
 extern int exit_lock;
 extern int stop_server;
 extern int server_running;
-extern int stop_tel;
-extern int tel_server_running;
 pthread_t ls_thread;
 pthread_t lock_thread;
 pthread_t gps_server_thread;
-pthread_t server_thread;
 
 int main(int argc, char* argv[]) {
     printf("This is BCP on Ophiuchus\n");
@@ -102,6 +98,36 @@ int main(int argc, char* argv[]) {
                 close(sockfd);
             } else {
                 printf("Successfully started bvexcam.\n");
+            }
+        }
+    }
+
+    // Initialize starcam downlink if enabled
+    if (config.starcam_downlink.enabled) {
+        printf("Starting starcam downlink\n");
+        write_to_log(main_log, "main_Oph.c", "main", "Starting starcam downlink");
+        
+        // Copy config to starcam_config
+        starcam_config.enabled = config.starcam_downlink.enabled;
+        strncpy(starcam_config.logfile, config.starcam_downlink.logfile, sizeof(starcam_config.logfile) - 1);
+        starcam_config.port = config.starcam_downlink.port;
+        starcam_config.compression_quality = config.starcam_downlink.compression_quality;
+        starcam_config.chunk_size = config.starcam_downlink.chunk_size;
+        starcam_config.max_bandwidth_kbps = config.starcam_downlink.max_bandwidth_kbps;
+        starcam_config.image_timeout_sec = config.starcam_downlink.image_timeout_sec;
+        strncpy(starcam_config.workdir, config.starcam_downlink.workdir, sizeof(starcam_config.workdir) - 1);
+        strncpy(starcam_config.notification_file, config.starcam_downlink.notification_file, sizeof(starcam_config.notification_file) - 1);
+        
+        if (initStarcamDownlink() != 0) {
+            printf("Error initializing starcam downlink.\n");
+            write_to_log(main_log, "main_Oph.c", "main", "Error initializing starcam downlink");
+        } else {
+            if (startStarcamServer() != 0) {
+                printf("Error starting starcam downlink server.\n");
+                write_to_log(main_log, "main_Oph.c", "main", "Error starting starcam downlink server");
+            } else {
+                printf("Successfully started starcam downlink.\n");
+                write_to_log(main_log, "main_Oph.c", "main", "Successfully started starcam downlink");
             }
         }
     }
@@ -197,25 +223,6 @@ int main(int argc, char* argv[]) {
 		}
     	}
     }
-    if (config.server.enabled){
-        printf("Starting telemetry server....\n");
-        write_to_log(main_log,"main_Oph.c","main","Starting telemetry server");
-        printf("Starting telemetry server log....\n");
-        write_to_log(main_log,"main_Oph.c","main","Starting telemetry server log");
-        server_log = fopen(config.server.logfile,"w");
-        if(server_log == NULL){
-                printf("Error starting telemetry server log %s: No such file or directory \n", config.server.logfile);
-                write_to_log(main_log, "main_Oph.c", "main", "Error opening server log: No such file or directory");
-        }else{
-                pthread_create(&server_thread,NULL,do_server,NULL);
-                while(tel_server_running==0){
-                        if(tel_server_running==1){
-                                printf("Successfully started telemetry server\n");
-                                write_to_log(main_log,"main_Oph.c","main","Successfully started telemetry server");
-                        }
-                }
-        }
-    }
     printf("\n");
     // Start command-line
     cmdprompt(cmd_log);
@@ -291,18 +298,13 @@ int main(int argc, char* argv[]) {
 	}
     }
 
-    if (config.server.enabled){
-        printf("Shutting down telemetry server\n");
-        write_to_log(main_log,"Main_Oph.c","main","Shutting down telemetry server");
-        if (tel_server_running == 1){
-                stop_tel = 1;
-                pthread_join(server_thread,NULL);
-                printf("Telemetry server shutdown\n");
-                write_to_log(main_log,"main_Oph.c","main","Telemetry server shutdown complete");
-        }else{
-                printf("Telemetry server already down\n");
-                write_to_log(main_log,"main_Oph.c","main","Telemetry server already down");
-        }
+    // Shutdown starcam downlink if it was enabled
+    if (config.starcam_downlink.enabled) {
+        printf("Shutting down starcam downlink\n");
+        write_to_log(main_log, "main_Oph.c", "main", "Shutting down starcam downlink");
+        cleanupStarcamDownlink();
+        printf("Starcam downlink shutdown complete.\n");
+        write_to_log(main_log, "main_Oph.c", "main", "Starcam downlink shutdown complete");
     }
 
     fclose(cmd_log);

@@ -1,3 +1,4 @@
+#define _DEFAULT_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -98,6 +99,13 @@ void read_in_config(char* filepath) {
 	exit(0);
     }
     config.bvexcam.t_exp = tmpint;
+
+    if(!config_lookup_int(&conf, "bvexcam.save_image",&tmpint)){
+        printf("Missing bvexcam.save_image in %s\n", filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.bvexcam.save_image = tmpint;
 
     if(!config_lookup_float(&conf, "bvexcam.lon",&tmpfloat)){
         printf("Missing bvexcam.lon in %s\n", filepath);
@@ -449,42 +457,71 @@ void read_in_config(char* filepath) {
     }
     config.gps_server.timeout = tmpint;
 
-    //server config
-
-    if(!config_lookup_int(&conf,"server.enabled",&tmpint)){
-        printf("Missing server.enabled in %s\n",filepath);
+    // Starcam downlink configuration
+    if(!config_lookup_int(&conf,"starcam_downlink.enabled",&tmpint)){
+        printf("Missing starcam_downlink.enabled in %s\n",filepath);
         config_destroy(&conf);
         exit(0);
     }
-    config.server.enabled = tmpint;
+    config.starcam_downlink.enabled = tmpint;
 
-    if(!config_lookup_string(&conf,"server.logfile",&tmpstr)){
-        printf("Missing server.logfile in %s\n",filepath);
+    if(!config_lookup_string(&conf,"starcam_downlink.logfile",&tmpstr)){
+        printf("Missing starcam_downlink.logfile in %s\n",filepath);
         config_destroy(&conf);
         exit(0);
     }
-    config.server.logfile = strdup(tmpstr);
+    config.starcam_downlink.logfile = strdup(tmpstr);
 
-    if(!config_lookup_string(&conf,"server.ip",&tmpstr)){
-        printf("Missing server.ip in %s\n",filepath);
+    if(!config_lookup_int(&conf,"starcam_downlink.port",&tmpint)){
+        printf("Missing starcam_downlink.port in %s\n",filepath);
         config_destroy(&conf);
         exit(0);
     }
-    config.server.ip = strdup(tmpstr);
+    config.starcam_downlink.port = tmpint;
 
-    if(!config_lookup_int(&conf,"server.port",&tmpint)){
-        printf("Missing server.port in %s\n",filepath);
+
+
+    if(!config_lookup_int(&conf,"starcam_downlink.compression_quality",&tmpint)){
+        printf("Missing starcam_downlink.compression_quality in %s\n",filepath);
         config_destroy(&conf);
         exit(0);
     }
-    config.server.port = tmpint;
+    config.starcam_downlink.compression_quality = tmpint;
 
-    if(!config_lookup_int(&conf,"server.timeout",&tmpint)){
-        printf("Missing server.timeout in %s\n",filepath);
+    if(!config_lookup_int(&conf,"starcam_downlink.chunk_size",&tmpint)){
+        printf("Missing starcam_downlink.chunk_size in %s\n",filepath);
         config_destroy(&conf);
         exit(0);
     }
-    config.server.timeout = tmpint;
+    config.starcam_downlink.chunk_size = tmpint;
+
+    if(!config_lookup_int(&conf,"starcam_downlink.max_bandwidth_kbps",&tmpint)){
+        printf("Missing starcam_downlink.max_bandwidth_kbps in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.starcam_downlink.max_bandwidth_kbps = tmpint;
+
+    if(!config_lookup_int(&conf,"starcam_downlink.image_timeout_sec",&tmpint)){
+        printf("Missing starcam_downlink.image_timeout_sec in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.starcam_downlink.image_timeout_sec = tmpint;
+
+    if(!config_lookup_string(&conf,"starcam_downlink.workdir",&tmpstr)){
+        printf("Missing starcam_downlink.workdir in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.starcam_downlink.workdir = strdup(tmpstr);
+
+    if(!config_lookup_string(&conf,"starcam_downlink.notification_file",&tmpstr)){
+        printf("Missing starcam_downlink.notification_file in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.starcam_downlink.notification_file = strdup(tmpstr);
 
     config_destroy(&conf);
 }
@@ -511,6 +548,7 @@ void print_config() {
     printf("  workdir = %s;\n", config.bvexcam.workdir);
     printf("  configdir = %s;\n",config.bvexcam.configdir);
     printf("  t_exp = %d;\n", config.bvexcam.t_exp);
+    printf("  save_image = %d;\n", config.bvexcam.save_image);
     printf("};\n\n");
     printf("accelerometer:{\n");
     printf("  enabled = %d;\n", config.accelerometer.enabled);
@@ -567,12 +605,18 @@ void print_config() {
     printf(" ip = %s;\n",config.gps_server.ip);
     printf(" port = %d;\n",config.gps_server.port);
     printf(" timout = %d;\n",config.gps_server.timeout);
-    printf("};\n\n");
-    printf("server:{\n");
-    printf(" enabled = %d;\n",config.server.enabled);
-    printf(" logfile = %s;\n",config.server.logfile);
-    printf(" ip = %s;\n",config.server.ip);
-    printf(" port = %d;\n",config.server.port);
-    printf(" timout = %d;\n",config.server.timeout);
-    printf("};\n\n");
+    printf("};\n\n"); 
+
+    printf("starcam_downlink:{\n");
+    printf(" enabled = %d;\n",config.starcam_downlink.enabled);
+    printf(" logfile = %s;\n",config.starcam_downlink.logfile);
+    printf(" port = %d;\n",config.starcam_downlink.port);
+    printf(" compression_quality = %d;\n",config.starcam_downlink.compression_quality);
+    printf(" chunk_size = %d;\n",config.starcam_downlink.chunk_size);
+    printf(" max_bandwidth_kbps = %d;\n",config.starcam_downlink.max_bandwidth_kbps);
+    printf(" image_timeout_sec = %d;\n",config.starcam_downlink.image_timeout_sec);
+    printf(" workdir = %s;\n",config.starcam_downlink.workdir);
+    printf(" notification_file = %s;\n",config.starcam_downlink.notification_file);
+    printf("};\n\n"); 
+
 }
