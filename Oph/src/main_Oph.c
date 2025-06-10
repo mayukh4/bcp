@@ -17,6 +17,7 @@
 #include "lockpin.h"
 #include "gps_server.h"
 #include "starcam_downlink.h"
+#include "server.h"
 
 // This is the main struct that stores all the config parameters
 struct conf_params config;
@@ -27,6 +28,7 @@ extern int * astro_ptr; // Pointer for returning from astrometry thread
 extern FILE* motor_log; //motor log
 extern FILE* ls_log;
 extern FILE* gps_server_log;
+extern FILE* server_log;
 extern AxesModeStruct axes_mode;//Pointing mode
 extern int ready;//This flag keeps track of the motor thread being ready or not
 extern int stop;//This flag is the queue to shut down the motor
@@ -36,9 +38,12 @@ extern int motor_off;
 extern int exit_lock;
 extern int stop_server;
 extern int server_running;
+extern int stop_tel;
+extern int tel_server_running;
 pthread_t ls_thread;
 pthread_t lock_thread;
 pthread_t gps_server_thread;
+pthread_t server_thread;
 
 int main(int argc, char* argv[]) {
     printf("This is BCP on Ophiuchus\n");
@@ -223,6 +228,27 @@ int main(int argc, char* argv[]) {
 		}
     	}
     }
+    
+    if (config.server.enabled){
+	printf("Starting telemetry server....\n");
+	write_to_log(main_log,"main_Oph.c","main","Starting telemetry server");
+	printf("Starting telemetry server log....\n");
+	write_to_log(main_log,"main_Oph.c","main","Starting telemetry server log");
+	server_log = fopen(config.server.logfile,"w");
+	if(server_log == NULL){
+		printf("Error starting telemetry server log %s: No such file or directory \n", config.server.logfile);
+		write_to_log(main_log, "main_Oph.c", "main", "Error opening telemetry server log: No such file or directory");
+	}else{
+		pthread_create(&server_thread,NULL,do_server,NULL);
+		while(tel_server_running==0){
+			if(tel_server_running==1){
+				printf("Successfully started telemetry server\n");
+				write_to_log(main_log,"main_Oph.c","main","Successfully started telemetry server");
+			}
+		}
+    	}
+    }
+    
     printf("\n");
     // Start command-line
     cmdprompt(cmd_log);
@@ -295,6 +321,20 @@ int main(int argc, char* argv[]) {
 	}else{
 		printf("GPS server already down\n");
 		write_to_log(main_log,"main_Oph.c","main","GPS server already down");
+	}
+    }
+    
+    if (config.server.enabled){
+        printf("Shutting down telemetry server\n");
+	write_to_log(main_log,"Main_Oph.c","main","Shutting down telemetry_server");
+        if (tel_server_running == 1){
+		stop_tel = 1;
+		pthread_join(server_thread,NULL);
+		printf("Telemetry server shutdown\n");
+		write_to_log(main_log,"main_Oph.c","main","Telemetry server shutdown complete");
+	}else{
+		printf("Telemetry server already down\n");
+		write_to_log(main_log,"main_Oph.c","main","Telemetry server already down");
 	}
     }
 

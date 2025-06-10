@@ -101,6 +101,14 @@ typedef struct starcam_downlink_conf{
 	char *notification_file;
 } starcam_downlink_conf;
 
+typedef struct server_conf{
+	int enabled;
+	char *logfile;
+	char *ip;
+	int port;
+	int timeout;
+} server_conf;
+
 typedef struct conf_params {
     struct main_conf main;
     struct bvexcam_conf bvexcam;
@@ -110,6 +118,7 @@ typedef struct conf_params {
     struct lockpin_conf lockpin;
     struct gps_server_conf gps_server;
     struct starcam_downlink_conf starcam_downlink;
+    struct server_conf server;
 } conf_params;
 
 extern struct conf_params config;

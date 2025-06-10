@@ -523,6 +523,42 @@ void read_in_config(char* filepath) {
     }
     config.starcam_downlink.notification_file = strdup(tmpstr);
 
+    // Server configuration
+    if(!config_lookup_int(&conf,"server.enabled",&tmpint)){
+        printf("Missing server.enabled in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.server.enabled = tmpint;
+
+    if(!config_lookup_string(&conf,"server.logfile",&tmpstr)){
+        printf("Missing server.logfile in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.server.logfile = strdup(tmpstr);
+
+    if(!config_lookup_string(&conf,"server.ip",&tmpstr)){
+        printf("Missing server.ip in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.server.ip = strdup(tmpstr);
+
+    if(!config_lookup_int(&conf,"server.port",&tmpint)){
+        printf("Missing server.port in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.server.port = tmpint;
+
+    if(!config_lookup_int(&conf,"server.timeout",&tmpint)){
+        printf("Missing server.timeout in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.server.timeout = tmpint;
+
     config_destroy(&conf);
 }
 
@@ -617,6 +653,14 @@ void print_config() {
     printf(" image_timeout_sec = %d;\n",config.starcam_downlink.image_timeout_sec);
     printf(" workdir = %s;\n",config.starcam_downlink.workdir);
     printf(" notification_file = %s;\n",config.starcam_downlink.notification_file);
+    printf("};\n\n"); 
+
+    printf("server:{\n");
+    printf(" enabled = %d;\n",config.server.enabled);
+    printf(" logfile = %s;\n",config.server.logfile);
+    printf(" ip = %s;\n",config.server.ip);
+    printf(" port = %d;\n",config.server.port);
+    printf(" timeout = %d;\n",config.server.timeout);
     printf("};\n\n"); 
 
 }
