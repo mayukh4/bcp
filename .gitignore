@@ -1,8 +1,46 @@
+# Build artifacts
+*.o
+*.a
+*.so
+*.exe
 build/
 cmake_install.cmake
 CMakeCache.txt
-Makefile
 CMakeFiles/
-pkgs/
-bvex-link/
+Makefile
+*.cmake
+!CMakeLists.txt
+!CMakePresets.json
+!vcpkg-configuration.json
+
+# Logs
+*.log
+log/*.log
+
+# Temporary files
+*~
+*.swp
+*.swo
+.DS_Store
+*.tmp
+
+# IDE files
+.vscode/
+.idea/
+*.code-workspace
+
+# vcpkg installed packages
 vcpkg_installed/
+
+# Auto-generated files
+*.bmp
+latest_auto_focus_data.txt
+latest_saved_image.bmp
+
+# Test executables
+test_client
+main
+
+# Binary data
+*.bin
+*.dat 
