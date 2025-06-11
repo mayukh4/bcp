@@ -1,0 +1,3 @@
+[1749496081][cli.c][cmdprompt] print_gps
+[1749496129][cli.c][cmdprompt] motor_control
+[1749496671][cli.c][cmdprompt] exit
