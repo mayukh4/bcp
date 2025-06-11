@@ -52,6 +52,9 @@ extern AxesModeStruct axes_mode;
 extern ScanModeStruct scan_mode;
 extern pthread_t motors;
 extern SkyCoord target;
+extern float p_pub;
+extern float i_pub;
+extern float d_pub;
 
 
 
