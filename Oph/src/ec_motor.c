@@ -52,6 +52,7 @@ int motor_index = 0;
 int stop = 0;
 int ready = 0;
 int comms_ok = 0;
+double parking_pos = (-1)*TELESCOPE_ANGLE;
 
 int check_slave_comm_ready(){
 	if (!controller_state.comms_ok){

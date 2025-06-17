@@ -168,7 +168,7 @@ int check_gps(){
 	float head_now;
 	static int firsttime = 1;
 	float head_err;
-
+	float az_err;
 	if (firsttime){
 		head_now = curr_gps.gps_head;
 		head_prev = head_now;
@@ -177,8 +177,9 @@ int check_gps(){
 	}
 	head_now = curr_gps.gps_head;
 	head_err = fabs(get_angle()-head_now);
+	az_err = fabs(get_angle()-axes_mode.dest_az);
 
-	if((head_err >= config.lazisusan.gps_db) && (head_now != 90 )){
+	if((head_err >= config.lazisusan.gps_db) && (head_now != 90 ) && (az_err > config.lazisusan.db)){
 		head_prev = head_now;
 		return 1;
 	}else{
@@ -213,7 +214,7 @@ void * do_az_motor(void*){
   		az_is_ready=1;
 
   		while(!motor_off){
-			if(config.gps_server.enabled){
+			if(config.gps_server.enabled && !config.bvexcam.enabled){
 				if(check_gps()){
 					set_offset(curr_gps.gps_head);
 				}

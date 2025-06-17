@@ -864,21 +864,33 @@ int findBlobs(char * input_buffer, int w, int h, double ** star_x,
 
             for (int j = j0 + 1; j < j1 - 1; j++) {
                 for (int i = i0 + 1; i < i1 - 1; i++) {
-                  output_buffer[i + j*w] = ic[i + j*w]+pixel_offset;
+                    // FIX: Properly clamp double values to valid uint8_t range (0-255)
+                    double pixel_val = ic[i + j*w] + pixel_offset;
+                    if (pixel_val < 0.0) pixel_val = 0.0;
+                    if (pixel_val > 255.0) pixel_val = 255.0;
+                    output_buffer[i + j*w] = (unsigned char)pixel_val;
                 }
             }
 
             for (int j = 0; j < b; j++) {
                 for (int i = i0; i < i1; i++) {
-                  output_buffer[i + (j + j0)*w] = 
-                  output_buffer[i + (j1 - j - 1)*w] = mean + pixel_offset;
+                    // FIX: Properly clamp double values to valid uint8_t range (0-255)
+                    double pixel_val = mean + pixel_offset;
+                    if (pixel_val < 0.0) pixel_val = 0.0;
+                    if (pixel_val > 255.0) pixel_val = 255.0;
+                    output_buffer[i + (j + j0)*w] = (unsigned char)pixel_val;
+                    output_buffer[i + (j1 - j - 1)*w] = (unsigned char)pixel_val;
                 }
             }
 
             for (int j = j0; j < j1; j++) {
                 for (int i = 0; i < b; i++) {
-                  output_buffer[i + i0 + j*w] = 
-                  output_buffer[i1 - i - 1 + j*w] = mean + pixel_offset;
+                    // FIX: Properly clamp double values to valid uint8_t range (0-255)
+                    double pixel_val = mean + pixel_offset;
+                    if (pixel_val < 0.0) pixel_val = 0.0;
+                    if (pixel_val > 255.0) pixel_val = 255.0;
+                    output_buffer[i + i0 + j*w] = (unsigned char)pixel_val;
+                    output_buffer[i1 - i - 1 + j*w] = (unsigned char)pixel_val;
                 }
             }
         } else {
@@ -888,8 +900,9 @@ int findBlobs(char * input_buffer, int w, int h, double ** star_x,
 
             for (int j = j0; j < j1; j++) {
                 for (int i = i0; i < i1; i++) {
-                  int idx = i + j*w;
-                  output_buffer[idx] = input_buffer[idx];
+                    int idx = i + j*w;
+                    // FIX: Ensure we cast to unsigned char to maintain proper pixel values
+                    output_buffer[idx] = (unsigned char)input_buffer[idx];
                 }
             }
         }
@@ -1151,7 +1164,8 @@ int doCameraAndAstrometry(FILE* log) {
     }
 
     if (first_time) {
-        output_buffer = calloc(1, CAMERA_WIDTH*CAMERA_HEIGHT);
+        // FIX: Allocate as unsigned char array for proper image data handling
+        output_buffer = calloc(CAMERA_WIDTH*CAMERA_HEIGHT, sizeof(unsigned char));
         if (output_buffer == NULL) {
             fprintf(log, "[%ld][camera.c][doCameraAndAstrometry] Error allocating output buffer: %s.\n", time(NULL), 
                     strerror(errno));
@@ -1331,6 +1345,14 @@ int doCameraAndAstrometry(FILE* log) {
         return -1;
     }
 */
+    // FIX: Save original camera image data BEFORE it gets overwritten by blob processing
+    static char *original_camera_data = NULL;
+    if (!original_camera_data) {
+        original_camera_data = malloc(CAMERA_WIDTH * CAMERA_HEIGHT);
+    }
+    // Make a copy of the original camera data before any processing
+    memcpy(original_camera_data, memory, CAMERA_WIDTH * CAMERA_HEIGHT);
+
     if(all_camera_params.solve_img||all_camera_params.focus_mode){
     	// find the blobs in the image
     	blob_count = findBlobs(memory, CAMERA_WIDTH, CAMERA_HEIGHT, &star_x, 
@@ -1573,7 +1595,9 @@ int doCameraAndAstrometry(FILE* log) {
      }
     
     // Notify image server of new image for downlink
-    notifyImageServer(date, blob_count, tv.tv_sec, output_buffer, CAMERA_WIDTH, CAMERA_HEIGHT);
+    // FIX: Send original camera image data (before blob processing) instead of processed buffers
+    // The 'memory' buffer was overwritten by processed data, so use original_camera_data
+    notifyImageServer(date, blob_count, tv.tv_sec, original_camera_data, CAMERA_WIDTH, CAMERA_HEIGHT);
 
     // make a table of blobs for Kst
     if (all_camera_params.solve_img){
@@ -1589,6 +1613,11 @@ int doCameraAndAstrometry(FILE* log) {
 
         if (output_buffer != NULL) {
             free(output_buffer);
+        }
+        
+        // FIX: Free the original camera data buffer
+        if (original_camera_data != NULL) {
+            free(original_camera_data);
         }
         
         if (mask != NULL) {

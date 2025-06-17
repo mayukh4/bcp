@@ -29,6 +29,7 @@ extern FILE* motor_log; //motor log
 extern FILE* ls_log;
 extern FILE* gps_server_log;
 extern FILE* server_log;
+extern FILE* bvexcam_log;
 extern AxesModeStruct axes_mode;//Pointing mode
 extern int ready;//This flag keeps track of the motor thread being ready or not
 extern int stop;//This flag is the queue to shut down the motor
@@ -51,7 +52,6 @@ int main(int argc, char* argv[]) {
 
     FILE* main_log; // main log file
     FILE* cmd_log; // command log
-    FILE* bvexcam_log; // Star camera log
 
     // get config file from command line and read it into the struct
     if (argc < 2) {

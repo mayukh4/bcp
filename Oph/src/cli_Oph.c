@@ -20,6 +20,7 @@ int exiting = 0;
 extern int shutting_down; // set this to one to shutdown star camera
 extern struct camera_params all_camera_params;
 extern struct astrometry all_astro_params;
+extern FILE* bvexcam_log;
 extern AccelerometerData accel_data;
 extern int stop;//flag that determines on/off state of motor
 extern pthread_t motors;
@@ -160,7 +161,26 @@ void exec_command(char* input) {
 	}else{
 	   printf("bvexcam is not enabled.\n");
 	}
-    } else if (strcmp(cmd, "accl_status") == 0) {
+    }else if (strcmp(cmd, "bvexcam_set_exp")==0){
+	double texp;
+	if(config.bvexcam.enabled){
+	   if(sscanf(arg,"%lf",&texp)==1){
+	   	all_camera_params.exposure_time = texp; 
+		all_camera_params.change_exposure_bool = 1;
+		if (adjustCameraHardware(bvexcam_log)==1){
+			printf("Successfully adjusted camera hardware\n");
+		}else{
+			printf("Error adjusting camera hardware\n");
+		}
+	   }else{
+		printf("Invalid asrgument\n");
+	   }
+        }else{
+		printf("bvexcam is not enabled.\n");
+
+	}
+
+    }else if (strcmp(cmd, "accl_status") == 0) {
         if (config.accelerometer.enabled) {
             AccelerometerStatus status;
             accelerometer_get_status(&status);
@@ -267,12 +287,34 @@ void exec_command(char* input) {
 			mvprintw(14,0,"Commanded velocity(dps): %lf\n", axes_mode.vel);
 		}
 		if(scan_mode.scanning){
-			mvprintw(15,0,"Scan mode: %d\n", scan_mode.mode);
-			mvprintw(16,0,"Start elevation(deg): %lf\n", scan_mode.start_el);
-			mvprintw(17,0,"Stop elevation(deg): %lf\n", scan_mode.stop_el);
-			mvprintw(18,0,"Dither speed(dps): %lf\n", scan_mode.vel);
-			mvprintw(19,0,"Number of scans: %d\n", scan_mode.nscans);
-			mvprintw(20,0,"Current Scan: %d\n", scan_mode.scan+1);
+			if(scan_mode.mode == ENC_DITHER){
+				mvprintw(15,0,"Scan mode: Dither Scan\n");
+				mvprintw(16,0,"Start elevation(deg): %lf\n", scan_mode.start_el);
+				mvprintw(17,0,"Stop elevation(deg): %lf\n", scan_mode.stop_el);
+				mvprintw(18,0,"Dither speed(dps): %lf\n", scan_mode.vel);
+				mvprintw(19,0,"Number of scans: %d\n", scan_mode.nscans);
+				mvprintw(20,0,"Current Scan: %d\n", scan_mode.scan+1);
+			}else if(scan_mode.mode == ENC_TRACK){
+				mvprintw(15,0,"Scan mode: Track\n");
+                                mvprintw(16,0,"Right Ascension (deg): %lf\n", target.lon);
+                                mvprintw(17,0,"Declination (deg): %lf\n", target.lat);
+                                mvprintw(18,0,"On Target: %d\n", axes_mode.on_target);
+                                mvprintw(19,0,"                                    ");
+                                mvprintw(20,0,"                                    ");
+			}else if(scan_mode.mode == EL_ONOFF){
+				mvprintw(15,0,"Scan mode: Elevation On Off\n");
+                                mvprintw(16,0,"Right Ascension (deg): %lf\n", target.lon);
+                                mvprintw(17,0,"Declination (deg): %lf\n", target.lat);
+                                if(scan_mode.on_position == 1){
+					mvprintw(18,0,"Position: On\n");
+				}else if (scan_mode.on_position == -1){
+					mvprintw(18,0,"Position: Off\n");
+				}else{
+					mvprintw(18,0,"Position: Moving\n");
+				}
+                                mvprintw(19,0,"Elevation offset (deg): %lf\n",scan_mode.offset);
+                                mvprintw(20,0,"Integration time (s): %lf\n",scan_mode.time);
+			}
 		}else{
 			mvprintw(15,0,"                                      ");
                         mvprintw(16,0,"                                      ");
@@ -372,18 +414,17 @@ void exec_command(char* input) {
 				axes_mode.vel = 0.0;
 				axes_mode.vel_az = 0.0;
 				axes_mode.on_target = 0;
-			}else if(strcmp(cmd,"set_offset") == 0){
-				if(config.lazisusan.enabled && config.motor.enabled){
-					sscanf(arg, "%lf,%lf",&az,&el);
-					set_offset(az);
-					set_el_offset(el);
-				}else if(!config.lazisusan.enabled){
-					set_el_offset(atof(arg));
-				}else if(!config.motor.enabled){
-					set_offset(atof(arg));
+			}else if(strcmp(cmd,"set_offset_az") == 0){
+				if(config.lazisusan.enabled){
+                                        set_offset(atof(arg));
 				}
+			}else if(strcmp(cmd,"set_offset_el") == 0){
+				if(config.motor.enabled){
+					set_el_offset(atof(arg));
+				}
+			}else if (strcmp(cmd,"park")==0){
+				go_to_park();
 			}
-
 			input = (char*)malloc(sizeof(char));
 			inputlen = 0;
 		}

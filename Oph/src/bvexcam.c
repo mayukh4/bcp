@@ -96,6 +96,7 @@ int sockfd;//Socket port
 
 int ret;//retrun value of pthread
 
+FILE * bvexcam_log;
 /* Helper function to display the Star Camera terminal header.
 ** Input: None.
 ** Output: None.

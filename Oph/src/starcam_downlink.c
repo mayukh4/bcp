@@ -82,6 +82,26 @@ static int compress_image_to_jpeg(void *raw_data, int width, int height,
     uint8_t *jpeg_buffer = NULL;
     unsigned long jpeg_size = 0;
     
+    // DEBUG: Check for obviously invalid image data
+    uint8_t *data_ptr = (uint8_t*)raw_data;
+    int zero_count = 0, nonzero_count = 0;
+    uint32_t pixel_sum = 0;
+    
+    // Sample first 1000 pixels to check image validity
+    int sample_size = (width * height > 1000) ? 1000 : width * height;
+    for (int i = 0; i < sample_size; i++) {
+        if (data_ptr[i] == 0) {
+            zero_count++;
+        } else {
+            nonzero_count++;
+            pixel_sum += data_ptr[i];
+        }
+    }
+    
+    log_message("DEBUG", "Image statistics: %dx%d, sample %d pixels: %d zeros, %d non-zeros, avg non-zero: %.1f", 
+               width, height, sample_size, zero_count, nonzero_count, 
+               nonzero_count > 0 ? (float)pixel_sum / nonzero_count : 0.0);
+    
     // Set up error handling
     cinfo.err = jpeg_std_error(&jerr.pub);
     jerr.pub.error_exit = jpeg_error_exit;
@@ -89,6 +109,7 @@ static int compress_image_to_jpeg(void *raw_data, int width, int height,
     if (setjmp(jerr.setjmp_buffer)) {
         jpeg_destroy_compress(&cinfo);
         if (jpeg_buffer) free(jpeg_buffer);
+        log_message("ERROR", "JPEG compression failed with libjpeg error");
         return -1;
     }
     
@@ -121,6 +142,7 @@ static int compress_image_to_jpeg(void *raw_data, int width, int height,
     *output_buffer = malloc(jpeg_size);
     if (!*output_buffer) {
         free(jpeg_buffer);
+        log_message("ERROR", "Failed to allocate output buffer for compressed image");
         return -1;
     }
     
@@ -128,6 +150,7 @@ static int compress_image_to_jpeg(void *raw_data, int width, int height,
     *output_size = jpeg_size;
     
     free(jpeg_buffer);
+    log_message("DEBUG", "JPEG compression successful: %u bytes output", jpeg_size);
     return 0;
 }
 
