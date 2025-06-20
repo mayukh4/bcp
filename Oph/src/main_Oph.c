@@ -18,21 +18,24 @@
 #include "gps_server.h"
 #include "starcam_downlink.h"
 #include "server.h"
+#include "pbob.h"
 
 // This is the main struct that stores all the config parameters
 struct conf_params config;
-extern pthread_t astro_thread_id; // Star Camera thread id
 extern pthread_t motors;//Motor pthread
-extern int sockfd; // Star Camera Socket port
 extern int * astro_ptr; // Pointer for returning from astrometry thread
 extern FILE* motor_log; //motor log
 extern FILE* ls_log;
 extern FILE* gps_server_log;
 extern FILE* server_log;
 extern FILE* bvexcam_log;
+extern FILE* main_log;
+extern FILE* pbob_log_file;
 extern AxesModeStruct axes_mode;//Pointing mode
 extern int ready;//This flag keeps track of the motor thread being ready or not
 extern int stop;//This flag is the queue to shut down the motor
+extern int bvexcam_on;
+extern int lockpin_on;
 extern int fd_az;
 extern int az_is_ready;
 extern int motor_off;
@@ -41,17 +44,18 @@ extern int stop_server;
 extern int server_running;
 extern int stop_tel;
 extern int tel_server_running;
+extern int shutdown_pbob;
+extern int pbob_enabled;
 pthread_t ls_thread;
-pthread_t lock_thread;
+extern pthread_t lock_thread;
+extern pthread_t astro_thread_id;
 pthread_t gps_server_thread;
 pthread_t server_thread;
+pthread_t pbob_thread;
 
 int main(int argc, char* argv[]) {
     printf("This is BCP on Ophiuchus\n");
     printf("========================\n");
-
-    FILE* main_log; // main log file
-    FILE* cmd_log; // command log
 
     // get config file from command line and read it into the struct
     if (argc < 2) {
@@ -82,29 +86,36 @@ int main(int argc, char* argv[]) {
         fclose(main_log);
         exit(1);
     }
-
-    if (config.bvexcam.enabled) {
-        printf("Starting bvexcam\n");
-        write_to_log(main_log, "main_Oph.c", "main", "Starting bvexcam");
+    if (config.power.enabled){
+        pbob_log_file = fopen(config.power.logfile,"w");
+	if (pbob_log_file == NULL){
+        	write_to_log(main_log, "main_Oph.c","main", "Error opening pbob log: No such file or directory");
+        	fclose(main_log);
+        	fclose(cmd_log);
+        	exit(1);
+	}else{
+		printf("Starting PBoBs....\n");
+		write_to_log(main_log,"main_Oph.c","main","Starting PBoBs");
+		pthread_create(&pbob_thread,NULL,run_pbob_thread,NULL);
+		while(!pbob_enabled){
+			if(pbob_enabled){
+				printf("PBoBs started successfully\n");
+				write_to_log(main_log,"main_Oph.c","main","PBoBs started successfully");
+				break;
+			}
+		}
+	}
+    }
+    if (config.bvexcam.enabled){
         printf("Starting bvexcam log\n");
         write_to_log(main_log, "main_Oph.c", "main", "Starting bvexcam log");
         bvexcam_log = fopen(config.bvexcam.logfile, "w");
 
         if (bvexcam_log == NULL) {
-            printf("Error opening bvexcam log %s: No such file or directory\n", config.bvexcam.logfile);
-            write_to_log(main_log, "main_Oph.c", "main", "Error opening bvexcam log: No such file or directory");
-        } else {
-            init_bvexcam(bvexcam_log);
-
-            // start star camera pthread
-            if (pthread_create(&astro_thread_id, NULL, run_bvexcam, (void *)bvexcam_log)) {
-                fprintf(stderr, "Error creating Astrometry thread: %s.\n", strerror(errno));
-                printf("Starting bvexcam was not successful.\n");
-                close(sockfd);
-            } else {
-                printf("Successfully started bvexcam.\n");
-            }
+               printf("Error opening bvexcam log %s: No such file or directory\n", config.bvexcam.logfile);
+                      write_to_log(main_log, "main_Oph.c", "main", "Error opening bvexcam log: No such file or directory");
         }
+
     }
 
     // Initialize starcam downlink if enabled
@@ -139,7 +150,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Initialize accelerometer if enabled
+    /* Initialize accelerometer if enabled
     if (config.accelerometer.enabled) {
         printf("Starting accelerometer\n");
         write_to_log(main_log, "main_Oph.c", "main", "Starting accelerometer");
@@ -151,7 +162,7 @@ int main(int argc, char* argv[]) {
             printf("Successfully started accelerometer.\n");
             write_to_log(main_log, "main_Oph.c", "main", "Successfully started accelerometer");
         }
-    }
+    }*/
 
     if (config.motor.enabled){
 	printf("Starting motor log.\n");
@@ -161,19 +172,9 @@ int main(int argc, char* argv[]) {
         if(motor_log == NULL){
 		printf("Error opening motor log %s: No such file or directory\n", config.motor.logfile);
                 write_to_log(main_log, "main_Oph.c", "main", "Error opening motor log: No such file or directory");
-	}else{
-		printf("Starting motors\n");
-		write_to_log(main_log,"main_Oph.c","main","Starting motors");
-		if(start_motor()){
-			printf("Motor startup successful\n");
-			write_to_log(main_log,"main_Oph.c","main","Motor startup successful");
-		}else{
-			printf("Error starting up motor see motor log\n");
-			write_to_log(main_log,"main_Oph.c","main","Error starting up motor see motor log");
-		}
-
 	}
     }
+
     if (config.lazisusan.enabled){
 	printf("Starting lazisusan log.\n");
 	write_to_log(main_log,"main_Oph.c","main","Starting motor log");
@@ -196,18 +197,6 @@ int main(int argc, char* argv[]) {
 		if(az_is_ready){
 			printf("Successfully started lazisusan\n");
 			write_to_log(main_log,"main_Oph.c","main","Successfully started lazisusan");
-		}
-	}
-    }
-    if(config.lockpin.enabled){
-	printf("Starting lockpin...");
-	write_to_log(main_log,"main_Oph.c","main","Starting lockpin");
-	pthread_create(&lock_thread,NULL,do_lockpin,NULL);
-	while(!lockpin_ready){
-		if(lockpin_ready){
-			printf("Successfully started lockpin\n");
-			write_to_log(main_log,"main_Oph.c","main","Successfully started lockpin");
-			break;
 		}
 	}
     }
@@ -253,31 +242,37 @@ int main(int argc, char* argv[]) {
     
     printf("\n");
     // Start command-line
-    cmdprompt(cmd_log);
+    cmdprompt();
 
     // Shutdown procedures
     if (config.bvexcam.enabled) {
-        pthread_join(astro_thread_id, (void **) &(astro_ptr));
+	if (bvexcam_on){
+        	pthread_join(astro_thread_id, (void **) &(astro_ptr));
 
-        if (*astro_ptr == 1) {
-            printf("Successfully shut down bvexcam.\n");
-            write_to_log(main_log, "main_Oph.c", "main", "Successfully shut down bvexcam");
-        } else {
-            printf("bvexcam shut down unsuccessful.\n");
-            write_to_log(main_log, "main_Oph.c", "main", "bvexcam shut down unsuccessful");
+        	if (*astro_ptr == 1) {
+            		printf("Successfully shut down bvexcam.\n");
+            		write_to_log(main_log, "main_Oph.c", "main", "Successfully shut down bvexcam");
+			bvexcam_on = 0;
+        	} else {
+           		printf("bvexcam shut down unsuccessful.\n");
+            	 	write_to_log(main_log, "main_Oph.c", "main", "bvexcam shut down unsuccessful");
+		}
+		//Put PBoB command here
+                set_toggle(config.bvexcam.pbob,config.bvexcam.relay);
+		//
         }
 
         fclose(bvexcam_log);
     }
 
-    // Shutdown accelerometer if it was enabled
+    /* Shutdown accelerometer if it was enabled
     if (config.accelerometer.enabled) {
         printf("Shutting down accelerometer\n");
         write_to_log(main_log, "main_Oph.c", "main", "Shutting down accelerometer");
         accelerometer_shutdown();
         printf("Accelerometer shut down complete.\n");
         write_to_log(main_log, "main_Oph.c", "main", "Accelerometer shut down complete");
-    }
+    }*/
 
     if (config.motor.enabled){
 	if(!stop){
@@ -287,11 +282,14 @@ int main(int argc, char* argv[]) {
             pthread_join(motors,NULL);
             printf("Motor shutdown complete\n");
 	    write_to_log(main_log,"main_Oph.c","main","Motor shutdown complete");
-	    fclose(motor_log);
+	    //Put PBob command here
+            set_toggle(config.motor.pbob,config.motor.relay);
+	    //
         }else{
             printf("Motor already shutdown \n");
             write_to_log(main_log,"main_Oph.c","main","Motor already shutdown\n");
 	}
+	fclose(motor_log);
     }
 
     if (config.lazisusan.enabled){
@@ -309,6 +307,9 @@ int main(int argc, char* argv[]) {
 	write_to_log(main_log,"Main_Oph.c","main","Shutting down lockpin");
 	exit_lock = 1;
 	pthread_join(lock_thread,NULL);
+	//put PBoB command here
+
+	//
 	printf("Lockpin shutdown complete\n");
 	write_to_log(main_log,"main_Oph.c","main","Lockpin shutdown complete");
     }
@@ -348,6 +349,16 @@ int main(int argc, char* argv[]) {
         printf("Starcam downlink shutdown complete.\n");
         write_to_log(main_log, "main_Oph.c", "main", "Starcam downlink shutdown complete");
     }
+
+    //This should be the last thing to shut down
+     if (config.power.enabled) {
+	printf("Shutting down PBoB\n");
+	write_to_log(main_log, "main_Oph.c", "main", "Shutting down PBoB");
+	shutdown_pbob = 1;
+	pthread_join(pbob_thread,NULL);
+	printf("PBoB shutdown complete\n");
+	write_to_log(main_log, "main_Oph.c", "main", " PBoB shutdown complete");
+     }
 
     fclose(cmd_log);
     fclose(main_log);

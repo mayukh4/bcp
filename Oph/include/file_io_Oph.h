@@ -26,6 +26,8 @@ typedef struct bvexcam_conf {
     float lat;
     float lon;
     double alt;
+    int pbob;
+    int relay;
 } bvexcam_conf;
 
 typedef struct accelerometer_conf {
@@ -56,6 +58,8 @@ typedef struct motor_conf {
     int  max_current;
     float  max_velocity;
     double pos_tol;
+    int pbob;
+    int relay;
 } motor_conf;
 
 typedef struct lazisusan_conf{
@@ -111,6 +115,24 @@ typedef struct server_conf{
 	int timeout;
 } server_conf;
 
+typedef struct pbob_conf{
+	int enabled;
+	int id;
+	char *ip;
+        int num_relays;
+}pbob_conf;
+
+typedef struct power_conf{
+	int enabled;
+        char *ip;
+        char *logfile;
+        int port;
+        int timeout;
+        struct pbob_conf pbob0;
+        struct pbob_conf pbob1;
+	struct pbob_conf pbob2;
+}power_conf;
+
 typedef struct conf_params {
     struct main_conf main;
     struct bvexcam_conf bvexcam;
@@ -121,6 +143,7 @@ typedef struct conf_params {
     struct gps_server_conf gps_server;
     struct starcam_downlink_conf starcam_downlink;
     struct server_conf server;
+    struct power_conf power;
 } conf_params;
 
 extern struct conf_params config;

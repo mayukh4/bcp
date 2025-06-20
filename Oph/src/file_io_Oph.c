@@ -128,6 +128,20 @@ void read_in_config(char* filepath) {
     }
     config.bvexcam.alt = tmpfloat;
 
+    if(!config_lookup_int(&conf, "bvexcam.pbob",&tmpint)){
+        printf("Missing bvexcam.pbob in %s\n", filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.bvexcam.pbob = tmpint;
+
+    if(!config_lookup_int(&conf, "bvexcam.relay",&tmpint)){
+        printf("Missing bvexcam.relay in %s\n", filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.bvexcam.relay = tmpint;
+
     // Accelerometer configuration
     if (!config_lookup_int(&conf, "accelerometer.enabled", &tmpint)) {
         printf("Missing accelerometer.enabled in %s\n", filepath);
@@ -298,6 +312,20 @@ void read_in_config(char* filepath) {
         exit(0);
     }
     config.motor.pos_tol = tmpfloat;
+
+    if(!config_lookup_int(&conf,"motor.pbob",&tmpint)){
+        printf("Missing motor.pbob in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.motor.pbob = tmpint;
+
+    if(!config_lookup_int(&conf,"motor.relay",&tmpint)){
+        printf("Missing motor.relay in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.motor.relay = tmpint;
 
     //Lazisusan config
 
@@ -581,6 +609,132 @@ void read_in_config(char* filepath) {
     }
     config.server.timeout = tmpint;
 
+    //power config
+
+    if(!config_lookup_int(&conf,"power.enabled",&tmpint)){
+        printf("Missing power.enabled in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.enabled = tmpint;
+
+    if(!config_lookup_string(&conf,"power.ip",&tmpstr)){
+        printf("Missing power.ip in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.ip = strdup(tmpstr);
+
+    if(!config_lookup_string(&conf,"power.logfile",&tmpstr)){
+        printf("Missing power.logfile in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.logfile = strdup(tmpstr);
+
+    if(!config_lookup_int(&conf,"power.port",&tmpint)){
+        printf("Missing power.port in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.port = tmpint;
+
+    if(!config_lookup_int(&conf,"power.timeout",&tmpint)){
+        printf("Missing power.timeout in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.timeout = tmpint;
+
+    //pbob0
+    if(!config_lookup_int(&conf,"power.pbob0.enabled",&tmpint)){
+        printf("Missing power.pbob0.enabled in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.pbob0.enabled = tmpint;
+
+    if(!config_lookup_int(&conf,"power.pbob0.id",&tmpint)){
+        printf("Missing power.pbob0.id in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.pbob0.id = tmpint;
+
+    if(!config_lookup_string(&conf,"power.pbob0.ip",&tmpstr)){
+        printf("Missing power.pbob0.ip in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.pbob0.ip = strdup(tmpstr);
+
+    if(!config_lookup_int(&conf,"power.pbob0.num_relays",&tmpint)){
+        printf("Missing power.pbob0.id in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.pbob0.num_relays = tmpint;
+
+    //pbob1
+ 
+    if(!config_lookup_int(&conf,"power.pbob1.enabled",&tmpint)){
+        printf("Missing power.pbob1.enabled in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.pbob1.enabled = tmpint;
+
+    if(!config_lookup_int(&conf,"power.pbob1.id",&tmpint)){
+        printf("Missing power.pbob1.id in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.pbob1.id = tmpint;
+
+    if(!config_lookup_string(&conf,"power.pbob1.ip",&tmpstr)){
+        printf("Missing power.pbob1.ip in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.pbob1.ip = strdup(tmpstr);
+
+    if(!config_lookup_int(&conf,"power.pbob1.num_relays",&tmpint)){
+        printf("Missing power.pbob1.id in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.pbob1.num_relays = tmpint;
+
+    //pbob2
+    if(!config_lookup_int(&conf,"power.pbob2.enabled",&tmpint)){
+        printf("Missing power.pbob2.enabled in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.pbob2.enabled = tmpint;
+
+    if(!config_lookup_int(&conf,"power.pbob2.id",&tmpint)){
+        printf("Missing power.pbob2.id in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.pbob2.id = tmpint;
+
+
+    if(!config_lookup_string(&conf,"power.pbob2.ip",&tmpstr)){
+        printf("Missing power.pbob2.ip in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.pbob2.ip = strdup(tmpstr);
+
+    if(!config_lookup_int(&conf,"power.pbob2.num_relays",&tmpint)){
+        printf("Missing power.pbob2.id in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.pbob2.num_relays = tmpint;
+
     config_destroy(&conf);
 }
 
@@ -662,7 +816,7 @@ void print_config() {
     printf(" logfile = %s;\n",config.gps_server.logfile);
     printf(" ip = %s;\n",config.gps_server.ip);
     printf(" port = %d;\n",config.gps_server.port);
-    printf(" timout = %d;\n",config.gps_server.timeout);
+    printf(" timeout = %d;\n",config.gps_server.timeout);
     printf("};\n\n"); 
 
     printf("starcam_downlink:{\n");
@@ -691,4 +845,29 @@ void print_config() {
     printf(" timeout = %d;\n",config.server.timeout);
     printf("};\n\n"); 
 
+    printf("power:{\n");
+    printf(" enabled = %d;\n",config.power.enabled);
+    printf(" logfile = %s;\n", config.power.logfile);
+    printf(" ip = %s;\n",config.power.ip);
+    printf(" port = %d\n",config.power.port);
+    printf(" timeout = %d\n",config.power.timeout);
+    printf(" pbob0:{\n");
+    printf("  enabled = %d;\n", config.power.pbob0.enabled);
+    printf("  id = %d\n", config.power.pbob0.id);
+    printf("  ip = %s;\n", config.power.pbob0.ip);
+    printf("  num_relays = %d;\n", config.power.pbob0.num_relays);
+    printf(" };\n");
+    printf(" pbob1:{\n");
+    printf("  enabled = %d;\n", config.power.pbob1.enabled);
+    printf("  id = %d\n", config.power.pbob1.id);
+    printf("  ip = %s;\n", config.power.pbob1.ip);
+    printf("  num_relays = %d;\n", config.power.pbob1.num_relays);
+    printf(" };\n");
+    printf(" pbob2:{\n");
+    printf("  enabled = %d;\n", config.power.pbob2.enabled);
+    printf("  id = %d\n", config.power.pbob2.id);
+    printf("  ip = %s;\n", config.power.pbob2.ip);
+    printf("  num_relays = %d;\n", config.power.pbob2.num_relays);
+    printf(" };\n");
+    printf("};\n\n");
 }

@@ -42,6 +42,7 @@ target_link_libraries(main
     ueye_api  # requires omp5
     m
     astrometry
+    LabJackM
     glib-2.0
     jpeg
     /usr/local/lib/libsofa_c.a

@@ -15,12 +15,20 @@
 #include "lockpin.h"
 #include "gps_server.h"
 #include "starcam_downlink.h"
+#include "pbob.h"
 
+FILE* main_log;
+FILE* cmd_log;
 int exiting = 0;
 extern int shutting_down; // set this to one to shutdown star camera
+extern int sockfd;
+extern int * astro_ptr;
+int bvexcam_on = 0;
+int lockpin_on = 0;
 extern struct camera_params all_camera_params;
 extern struct astrometry all_astro_params;
 extern FILE* bvexcam_log;
+extern FILE* notor_log;
 extern AccelerometerData accel_data;
 extern int stop;//flag that determines on/off state of motor
 extern pthread_t motors;
@@ -33,11 +41,15 @@ extern SkyCoord target;
 extern int lock_tel;
 extern int unlock_tel;
 extern int is_locked;
+extern int exit_lock;
 extern int reset;
 extern int stop_server;
 extern GPS_data curr_gps;
 extern double az_offset;
 extern int count_now;
+extern pthread_t astro_thread_id;
+pthread_t lock_thread;
+extern RelayController controller[NUM_PBOB];
 // This executes the commands, we can simply add commands by adding if statements
 void exec_command(char* input) {
     char* arg;
@@ -61,7 +73,7 @@ void exec_command(char* input) {
             shutting_down = 1;
             printf("Shutting down bvexcam\n");
         }
-        
+
         if (config.accelerometer.enabled) {
             printf("Shutting down accelerometer\n");
             accelerometer_shutdown();
@@ -69,6 +81,53 @@ void exec_command(char* input) {
         free(arg);
         free(cmd);
         return; // Exit the command loop immediately
+
+    } else if (strcmp(cmd, "bvexcam_start") == 0){
+	if(config.bvexcam.enabled && !bvexcam_on){
+                shutting_down = 0;
+		printf("Starting bvexcam\n");
+        	write_to_log(main_log, "cli_Oph.c", "exec_command", "Starting bvexcam");
+		// Put PBoB command here
+			set_toggle(config.bvexcam.pbob,config.bvexcam.relay);
+		//
+		if (bvexcam_log != NULL){
+            		init_bvexcam(bvexcam_log);
+
+            // start star camera pthread
+            		if (pthread_create(&astro_thread_id, NULL, run_bvexcam, (void *)bvexcam_log)) {
+                		fprintf(stderr, "Error creating Astrometry thread: %s.\n", strerror(errno));
+                		printf("Starting bvexcam was not successful.\n");
+                		close(sockfd);
+            		} else {
+				bvexcam_on = 1;
+                		printf("Successfully started bvexcam.\n");
+            		}
+        	}else{
+			printf("Invalid log file \n");
+		}
+	}else if(!config.bvexcam.enabled) {
+		printf("bvexcam is not enabled\n");
+	}else if(bvexcam_on){
+		printf("bvexcam already running\n");
+	}
+    }else if (strcmp(cmd, "bvexcam_stop") == 0){
+        if (config.bvexcam.enabled && bvexcam_on) {
+            shutting_down = 1;
+            pthread_join(astro_thread_id, (void **) &(astro_ptr));
+            if (*astro_ptr == 1) {
+                bvexcam_on = 0;
+                printf("Successfully shut down bvexcam.\n");
+                write_to_log(main_log, "cli_Oph.c", "exec_command", "Successfully shut down bvexcam");
+            } else {
+                printf("bvexcam shut down unsuccessful.\n");
+                write_to_log(main_log, "cli_Oph.c", "exec_command", "bvexcam shut down unsuccessful");
+            }
+	    set_toggle(config.bvexcam.pbob,config.bvexcam.relay);
+    	}else if (!config.bvexcam.enabled){
+		printf("bvexcam not enabled");
+	}else if (!bvexcam_on){
+		printf("bvexcam already shutdown");
+	}
     } else if (strcmp(cmd, "bvexcam_status") == 0) {
         if (config.bvexcam.enabled) {
             SCREEN* s;
@@ -231,10 +290,22 @@ void exec_command(char* input) {
 	    if(stop){
 		stop = 0;
 		printf("Starting motor\n");
-		if (start_motor()){
-			printf("Successfully started motor\n");
+		write_to_log(main_log,"cli_Oph.c","exec_command","Starting motors");
+		if(motor_log != NULL){
+			//Put PBoB command here
+			set_toggle(config.motor.pbob,config.motor.relay);
+			//
+			usleep(5000000);
+			if (start_motor()){
+				printf("Successfully started motor\n");
+				write_to_log(main_log,"cli_Oph.c","exec_command","Motor startup successful");
+			}else{
+				printf("Error starting motor please see motor log\n");
+				write_to_log(main_log,"cli_Oph.c","exec_command","Error starting up motor see motor log");
+			}
 		}else{
-			printf("Error starting motor please see motor log\n");
+			printf("Invalid log file\n");
+
 		}
             }else{
                 printf("Motor is already running\n");
@@ -251,6 +322,7 @@ void exec_command(char* input) {
 		comms_ok = 0;
            	printf("Shutting down motor.\n");
             	pthread_join(motors,NULL);
+		set_toggle(config.motor.pbob,config.motor.relay);
            	printf("Motor shutdown complete.\n");
 	    }else{
 		printf("Motor already shutdown.\n");
@@ -431,47 +503,104 @@ void exec_command(char* input) {
 	}
 	endwin();
 	delscreen(s);
-    }else if(strcmp(cmd,"lock_tel")==0 && config.lockpin.enabled){
-	if(config.lockpin.enabled&& !is_locked){
-		lock_tel = 1;
-		printf("Locking telescope...\n");
-		while(1){
-			if(is_locked){
-				printf("Telescope locked\n");
-				break;
-			}
+    }else if(strcmp(cmd,"lockpin_start")==0){
+	if (config.lockpin.enabled){
+		if(!lockpin_on){
+			exit_lock = 0;
+			printf("Starting Lockpin....\n");
+			write_to_log(main_log,"cli_Oph.c","exec_command","Starting lockpin");
+			//PBoB command goes here
+
+			//
+			pthread_create(&lock_thread,NULL,do_lockpin,NULL);
+			while(!lockpin_ready){
+                		if(lockpin_ready){
+                        		printf("Successfully started lockpin\n");
+                        		write_to_log(main_log,"cli_Oph.c","exec_command","Successfully started lockpin");
+					lockpin_on = 1;
+                        		break;
+                		}
+        		}
+		}else{
+			printf("Lockpin already running\n");
 		}
-	}else if(config.lockpin.enabled && is_locked){
-		printf("Telescope already locked\n");
 	}else{
-		printf("Lockpin is not enabled\n");
+		printf("Lockpin not enabled\n");
+	}
+    }else if(strcmp(cmd,"lockpin_stop")==0){
+	if (config.lockpin.enabled){
+		if(lockpin_on){
+			printf("Shutting down lockpin\n");
+        		write_to_log(main_log,"cli_Oph.c","exec_command","Shutting down lockpin");
+        		exit_lock = 1;
+        		pthread_join(lock_thread,NULL);
+			//PBoB command goes here
+
+			//
+        		printf("Lockpin shutdown complete\n");
+       		 	write_to_log(main_log,"cli_Oph.c","exec_command","Lockpin shutdown complete");
+
+		}else{
+			printf("Lockpin already shutdown\n");
+		}
+	}else{
+		printf("Lockpin not enabled\n");
+	}
+    }else if(strcmp(cmd,"lock_tel")==0){
+	if(config.lockpin.enabled){
+		if(lockpin_on && !is_locked){
+			lock_tel = 1;
+			printf("Locking telescope...\n");
+			while(1){
+				if(is_locked){
+					printf("Telescope locked\n");
+					break;
+				}
+			}
+		}else if(!lockpin_on){
+			printf("Lockpin not running\n");
+		}else if(is_locked){
+			printf("Telescope already locked\n");
+		}
+	}else{
+		printf("Lockpin not enabled\n");
 	}
 
-    }else if(strcmp(cmd,"unlock_tel")==0 && config.lockpin.enabled){
-	if(config.lockpin.enabled&& is_locked){
-		unlock_tel = 1;
-		printf("Unlocking telescope...\n");
-		while(1){
-			if(!is_locked){
-				printf("Telescope unlocked\n");
-				break;
+    }else if(strcmp(cmd,"unlock_tel")==0){
+	if(config.lockpin.enabled){
+		if(lockpin_on && is_locked){
+			unlock_tel = 1;
+			printf("Unlocking telescope...\n");
+			while(1){
+				if(!is_locked){
+					printf("Telescope unlocked\n");
+					break;
+				}
 			}
+		}else if(!lockpin_on){
+			printf("Lockpin not running\n");
+		}else if(!is_locked){
+			printf("Telescope already unlocked\n");
 		}
-	}else if(config.lockpin.enabled && !is_locked){
-		printf("Telescope already unlocked\n");
 	}else{
-		printf("Lockpin is not enabled\n");
-	} 
+		printf("Lockpin not enabled\n");
+	}
     }else if (strcmp(cmd,"reset_lock")==0){
 	if(config.lockpin.enabled){
-		reset = 1;
-		printf("Resetting lockpin...\n");
-		while(1){
-			if(!reset){
-				printf("Lockpin reset");
-				break;
+		if(lockpin_on){
+			reset = 1;
+			printf("Resetting lockpin...\n");
+			while(1){
+				if(!reset){
+					printf("Lockpin reset");
+					break;
+				}
 			}
+		}else{
+			printf("Lockpin not running\n");
 		}
+	}else{
+		printf("Lockpin not enabled\n");
 	}
 
     }else if (strcmp(cmd,"print_gps")==0){
@@ -525,7 +654,7 @@ char* get_input() {
 }
 
 // This is the main function for the command line
-void cmdprompt(FILE* cmdlog) {
+void cmdprompt() {
     int count = 1;
     char* input;
 
@@ -533,7 +662,7 @@ void cmdprompt(FILE* cmdlog) {
         printf("[BCP@Ophiuchus]<%d>$ ", count);
         input = get_input();
         if (strlen(input) != 0) {
-            write_to_log(cmdlog, "cli.c", "cmdprompt", input);
+            write_to_log(cmd_log, "cli.c", "cmdprompt", input);
             exec_command(input);
         }
         free(input);
