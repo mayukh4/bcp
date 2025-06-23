@@ -24,6 +24,7 @@ struct sockaddr_in cliaddr_pbob;
 int pbob_enabled;
 int pbob_server_running = 0;
 int stop_pbob_server = 0;
+int sockfd;
 pthread_t pbob_server_thread;
 
 typedef enum {
@@ -31,23 +32,36 @@ typedef enum {
     PBOB_DISABLED = 1
 } PbobStatus;
 
+// Current names for subsystems each PBOB controls
+static const char* metric_names[NUM_PBOB][NUM_RELAYS] = {
+    // PBOB 0
+    { "//", "motor_current", "bvex_cam_current", "//", "//", "//" },
+    // PBOB 1
+    { "//", "//", "//", "//", "//", NULL },
+    // PBOB 2
+    { "//", "//", "//", NULL, NULL, NULL }
+};
+
 const int regs[NUM_RELAYS] = {2008, 2009, 2010, 2011, 2012, 2013}; // Register addresses for relays
+const int pins[NUM_RELAYS] = {0, 1, 2, 3, 4, 5}; // Pin names for relays
 RelayController controller[NUM_PBOB]; //I moved the extern flag to the header-FT
 
 //This finds a particular relay and flips a toggle flag. I added this for userfreindliness - FT
 
-void set_toggle(int pbob_id, int relay_id){
+int set_toggle(int pbob_id, int relay_id){
 
 	for(int j = 0; j<NUM_PBOB; j++){
 		if(controller[j].id == pbob_id){
 			for(int i=0; i<controller[j].num_relays; i++){
 				if(controller[j].relays[i].relay_id == relay_id){
 					controller[j].relays[i].toggle = 1;
-					break;
+					return 1; // Successfully set toggle
 				}
 			}
 		}
 	}
+
+    return 0; // Relay not found or PBOB not found
 }
 
 /*
@@ -57,7 +71,7 @@ void set_toggle(int pbob_id, int relay_id){
 * and relay_id is used to identify which relay (if any) was involved.
 */
 
-void handle_ljm_error(int err, const char* operation, int relay_id, const char* function) {
+static void handle_ljm_error(int err, const char* operation, int relay_id, const char* function) {
     if (err != LJME_NOERROR) {
         char errorString[LJM_MAX_NAME_SIZE];
         char message[512];
@@ -80,7 +94,7 @@ void handle_ljm_error(int err, const char* operation, int relay_id, const char* 
 * Returns PBOB_ENABLED if successful, PBOB_DISABLED if the PBOB is disabled in the configuration.
 */
 
-int open_labjack(RelayController* ctrl) {
+static int open_labjack(RelayController* ctrl) {
     int err;
     err = LJM_OpenS("T7", "ETHERNET", ctrl->ip, &ctrl->handle);
     if (err != LJME_NOERROR) {
@@ -113,7 +127,7 @@ int open_labjack(RelayController* ctrl) {
  * Close the LabJack connection.
  * This function should be called when the program is done using the LabJack.
  */
-void close_labjack(RelayController* ctrl) {
+static void close_labjack(RelayController* ctrl) {
     if (ctrl->handle <= 0) return;
     
     int err = LJM_Close(ctrl->handle);
@@ -129,7 +143,7 @@ void close_labjack(RelayController* ctrl) {
  * Initialize all relays to OFF state and set them as outputs.
  * This function should be called after opening the LabJack connection.
  */
-int initialize_relays(RelayController* ctrl) {
+static int initialize_relays(RelayController* ctrl) {
     int err;
     
     for (int i = 0; i < ctrl->num_relays; i++) {
@@ -162,7 +176,7 @@ int initialize_relays(RelayController* ctrl) {
  * If the relay is ON, it will be turned OFF, and vice versa.
  * The relay ID should be between 0 and NUM_RELAYS - 1.
  */
-void toggle_relay(RelayController* ctrl, int relay_id) {
+static void toggle_relay(RelayController* ctrl, int relay_id) {
     char message[256];
     
     if (relay_id < 0 || relay_id >= ctrl->num_relays) {
@@ -246,7 +260,7 @@ void display_menu() {
     printf("║  s: Show relay status              ║\n");
     printf("║  q: Quit program                   ║\n");
     printf("╚════════════════════════════════════╝\n");
-} */
+} 
 
 /*
 * Main loop to run the relay controller.
@@ -286,7 +300,7 @@ void run_controller(RelayController* ctrl) {
  * Initialize parameters for a specific PBOB based on the configuration.
  * Returns PBOB_ENABLED if the PBOB is enabled, PBOB_DISABLED if it is not.
  */
-int initialize_parameters(int pbob_index, RelayController* ctrl) {
+static int initialize_parameters(int pbob_index, RelayController* ctrl) {
     int enabled = 0;
     const char* ip = NULL;
     int num_relays = 0;
@@ -334,13 +348,33 @@ int initialize_parameters(int pbob_index, RelayController* ctrl) {
     return PBOB_ENABLED;
 }
 
+/** Send an integer value over a UDP socket to the client.
+* The integer is converted to a string and sent as a message.
+* The client address is specified in the global variable cliaddr.
+*/
+static void sendInt_pbob(int sockfd, int sample) {
+	char string_sample[6];
+
+	snprintf(string_sample,6,"%d",sample);
+        sendto(sockfd, (const char*) string_sample, strlen(string_sample), MSG_CONFIRM,(const struct sockaddr *) &cliaddr_pbob, sizeof(cliaddr_pbob));
+        return;
+}
+
+static void sendDouble(int sockfd,double sample) {
+	char string_sample[10];
+
+	snprintf(string_sample,10,"%lf",sample);
+	sendto(sockfd, (const char*) string_sample, strlen(string_sample), MSG_CONFIRM,(const struct sockaddr *) &cliaddr, sizeof(cliaddr));
+	return;
+}
+
 /*
 * Initialize the PBOB socket for receiving commands.
 * It creates a UDP socket, binds it to the specified IP and port,
 * and sets a receive timeout.
 * Returns the socket file descriptor on success, or -1 on failure.
 */
-int init_socket_pbob() {
+static int init_socket_pbob() {
 	int sockfd = socket(AF_INET,SOCK_DGRAM,0);
 	struct sockaddr_in servaddr;
 	struct timeval tv;
@@ -383,7 +417,7 @@ int init_socket_pbob() {
 * Listen for incoming messages on the PBOB socket.
 * It receives data into the provided buffer and updates the client address.
 */
-void sock_listen_pbob(int sockfd, char* buffer){
+static void sock_listen_pbob(int sockfd, char* buffer) {
 	int n;
 	socklen_t cliaddr_len = sizeof(cliaddr_pbob);
 	
@@ -404,11 +438,12 @@ void sock_listen_pbob(int sockfd, char* buffer){
 /*
 * Thread function to handle incoming requests for PBOB relay control.
 * It listens for messages, parses the PBOB id and relay id, and toggles the relay accordingly.
+* Messages should be sent with the format "PBOB_ID;RELAY_ID".
 */
 
-void *do_server_pbob(){
+static void *do_server_pbob() {
 
-	int sockfd = init_socket_pbob();
+	sockfd = init_socket_pbob();
 	char buffer[MAXLEN];
 
     if(pbob_server_running){
@@ -428,7 +463,9 @@ void *do_server_pbob(){
                 } else if (relay_id < 0 || relay_id >= controller[pbob_id].num_relays) {
                     write_to_log(pbob_log_file, "pbob.c", "do_server_pbob", "Invalid relay id received");
                 } else {
-                    set_toggle(pbob_id, relay_id);
+                    if (set_toggle(pbob_id, relay_id)) {
+                        sendInt_pbob(sockfd, 1); // Send success response
+                    }
                 }
             }
 
@@ -439,6 +476,15 @@ void *do_server_pbob(){
         close(sockfd);
     }else{
         write_to_log(pbob_log_file,"pbob.c","do_server_pbob","Could not start server");
+    }
+}
+
+static void send_metric_pbob(int sockfd, char* id, double value) {
+    if(strcmp(id, "motor_current")==0){
+        sendDouble(sockfd, value); // Placeholder for current reading
+    } else{
+        fprintf(pbob_log_file, "[%ld][pbob.c][send_metric] Received unknown request: '%s'\n", time(NULL), id);
+        fflush(pbob_log_file);
     }
 }
 
@@ -461,6 +507,7 @@ int run_pbob() {
                 controller[i].relays[j].registerAddress = regs[j];
                 controller[i].relays[j].relay_id = j;
                 controller[i].relays[j].state = false;
+                controller[i].relays[j].pin = pins[j];
             }
             controller[i].handle = 0;
             
@@ -488,7 +535,6 @@ int run_pbob() {
 * Check if all relays across all PBOBs are OFF.
 * Returns 1 if all relays are OFF, 0 otherwise.
 */
-
 int all_relays_off() {
     int count = 0;
     int which_relays_off[NUM_PBOB] = {0};
@@ -519,18 +565,49 @@ int all_relays_off() {
 }
 
 /*
+ * Reads the current flowing through a relay by measuring the voltage across a shunt resistor.
+ * The function reads the voltage from the specified analog input, calculates the current,
+ * logs the result, and sends the current value as a metric.
+ */
+static void read_relay_current(RelayController* ctrl, int channel) {
+    double voltage, current;
+    char channel_name[10];
+    char message[256];
+    
+    snprintf(channel_name, sizeof(channel_name), "AIN%d", channel);
+    
+    int err = LJM_eReadName(ctrl->handle, channel_name, &voltage);
+    if (err != LJME_NOERROR) {
+        snprintf(message, sizeof(message), "Failed to read voltage from %s", channel_name);
+        handle_ljm_error(err, "reading analog input", channel, "read_relay_current");
+        return;
+    } else {
+        current = voltage/SHUNT_RESISTOR;
+        snprintf(message, sizeof(message), "Current read from %s: %.6f A", channel_name, current);
+        write_to_log(pbob_log_file, "pbob.c", "read_relay_current", message);
+    }
+
+    if (metric_names[ctrl->id][channel] != NULL) {
+        send_metric_pbob(sockfd, metric_names[ctrl->id][channel], current);
+    } else {
+        snprintf(message, sizeof(message), "Invalid PBOB ID %d or channel %d for current reading", ctrl->id, channel);
+        write_to_log(pbob_log_file, "pbob.c", "read_relay_current", message);
+        return;
+    }
+}
+
+/*
 * Thread function to run the PBOB relay control system.
 * It continuously checks for relay toggles and performs shutdown if requested.
 */
-
 void* run_pbob_thread(void* arg) {
     char message[256];
     run_pbob();
     
-    char choice;
     while(1) {
         for(int i = 0; i < NUM_PBOB; i++) {
             for(int j = 0; j < controller[i].num_relays; j++) {
+                read_relay_current(&controller[i], controller[i].relays[j].relay_id);
                 if (controller[i].relays[j].toggle) {
                     toggle_relay(&controller[i], j);
                     controller[i].relays[j].toggle = 0;

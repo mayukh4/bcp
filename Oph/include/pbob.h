@@ -9,12 +9,14 @@
 #define STATE_TYPE 0  
 #define DELAY_US 20000  
 #define MAXLEN 1024
+#define SHUNT_RESISTOR 0.1 // Ohm
 
 typedef struct {
     int relay_id;        
     bool state;   
     int toggle;
     int registerAddress;
+    double current; // Current in Amperes
 } Relay; 
 
 typedef struct {
@@ -26,15 +28,8 @@ typedef struct {
 } RelayController; 
 
 // Function prototypes - match the actual implementations
-void handle_ljm_error(int err, const char* operation, int relay_id, const char* function);
-int open_labjack(RelayController* ctrl);
-void close_labjack(RelayController* ctrl);
-int initialize_relays(RelayController* ctrl);  // Changed to int return type
-void toggle_relay(RelayController* ctrl, int relay_id);
-void set_all_relays(RelayController* ctrl, bool state);
-void run_controller(RelayController* ctrl);
 int run_pbob();
-void set_toggle(int pbob_id, int relay_id);
+int set_toggle(int pbob_id, int relay_id);
 void* run_pbob_thread(void* arg);
 int all_relays_off();
 
