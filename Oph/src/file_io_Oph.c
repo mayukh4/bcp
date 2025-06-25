@@ -449,6 +449,20 @@ void read_in_config(char* filepath) {
     }
     config.lockpin.duration = tmpint;
 
+    if(!config_lookup_int(&conf,"lockpin.pbob",&tmpint)){
+        printf("Missing lockpin.pbob in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.lockpin.pbob = tmpint;
+
+    if(!config_lookup_int(&conf,"lockpin.relay",&tmpint)){
+        printf("Missing lockpin.relay in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.lockpin.relay = tmpint;
+
     //GPS server config
     if(!config_lookup_int(&conf,"gps_server.enabled",&tmpint)){
         printf("Missing gps_server.enabled in %s\n",filepath);
@@ -675,6 +689,12 @@ void read_in_config(char* filepath) {
     }
     config.power.pbob0.num_relays = tmpint;
 
+    if(!config_lookup_string(&conf,"power.pbob0.workdir",&tmpstr)){
+        printf("Missing power.pbob0.workdir in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.pbob0.workdir = strdup(tmpstr);
     //pbob1
  
     if(!config_lookup_int(&conf,"power.pbob1.enabled",&tmpint)){
@@ -705,6 +725,13 @@ void read_in_config(char* filepath) {
     }
     config.power.pbob1.num_relays = tmpint;
 
+    if(!config_lookup_string(&conf,"power.pbob1.workdir",&tmpstr)){
+        printf("Missing power.pbob1.workdir in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.pbob1.workdir = strdup(tmpstr);
+
     //pbob2
     if(!config_lookup_int(&conf,"power.pbob2.enabled",&tmpint)){
         printf("Missing power.pbob2.enabled in %s\n",filepath);
@@ -734,6 +761,58 @@ void read_in_config(char* filepath) {
         exit(0);
     }
     config.power.pbob2.num_relays = tmpint;
+
+    if(!config_lookup_string(&conf,"power.pbob2.workdir",&tmpstr)){
+        printf("Missing power.pbob2.workdir in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.power.pbob2.workdir = strdup(tmpstr);
+
+
+    //LNA's
+    if(!config_lookup_int(&conf,"lna.enabled",&tmpint)){
+        printf("Missing lna.enabled in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.lna.enabled = tmpint;
+
+    if(!config_lookup_int(&conf,"lna.pbob",&tmpint)){
+        printf("Missing lna.pbob in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.lna.pbob = tmpint;
+
+    if(!config_lookup_int(&conf,"lna.relay",&tmpint)){
+        printf("Missing lna.relay in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.lna.relay = tmpint;
+
+    //Mixer
+    if(!config_lookup_int(&conf,"mixer.enabled",&tmpint)){
+        printf("Missing mixer.enabled in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.mixer.enabled = tmpint;
+
+    if(!config_lookup_int(&conf,"mixer.pbob",&tmpint)){
+        printf("Missing mixer.pbob in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.mixer.pbob = tmpint;
+
+    if(!config_lookup_int(&conf,"mixer.relay",&tmpint)){
+        printf("Missing mixer.relay in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.mixer.relay = tmpint;
 
     config_destroy(&conf);
 }
@@ -804,13 +883,17 @@ void print_config() {
     printf(" db = %lf\n",config.lazisusan.db);
     printf(" gps_db = %lf\n",config.lazisusan.gps_db);
     printf("};\n\n");
+
     printf("lockpin:{\n");
     printf(" enabled = %d;\n",config.lockpin.enabled);
     printf(" logfile = %s;\n",config.lockpin.logfile);
     printf(" baud = %d;\n",config.lockpin.baud);
     printf(" serialport = %s;\n",config.lockpin.serialport);
     printf(" duration = %d;\n",config.lockpin.duration);
+    printf(" pbob = %d;\n",config.lockpin.pbob);
+    printf(" relay = %d;\n",config.lockpin.relay);
     printf("};\n\n");
+
     printf("gps_server:{\n");
     printf(" enabled = %d;\n",config.gps_server.enabled);
     printf(" logfile = %s;\n",config.gps_server.logfile);
@@ -856,18 +939,34 @@ void print_config() {
     printf("  id = %d\n", config.power.pbob0.id);
     printf("  ip = %s;\n", config.power.pbob0.ip);
     printf("  num_relays = %d;\n", config.power.pbob0.num_relays);
+    printf("  workdir = %d;\n", config.power.pbob0.workdir);
     printf(" };\n");
     printf(" pbob1:{\n");
     printf("  enabled = %d;\n", config.power.pbob1.enabled);
     printf("  id = %d\n", config.power.pbob1.id);
     printf("  ip = %s;\n", config.power.pbob1.ip);
     printf("  num_relays = %d;\n", config.power.pbob1.num_relays);
+    printf("  workdir = %d;\n", config.power.pbob1.workdir);
     printf(" };\n");
     printf(" pbob2:{\n");
     printf("  enabled = %d;\n", config.power.pbob2.enabled);
     printf("  id = %d\n", config.power.pbob2.id);
     printf("  ip = %s;\n", config.power.pbob2.ip);
     printf("  num_relays = %d;\n", config.power.pbob2.num_relays);
+    printf("  workdir = %d;\n", config.power.pbob2.workdir);
     printf(" };\n");
     printf("};\n\n");
+
+    printf("lna:{\n");
+    printf(" enabled = %d;\n",config.lna.enabled);
+    printf(" pbob = %d;\n",config.lna.pbob);
+    printf(" relay = %d;\n",config.lna.relay);
+    printf("};\n\n");
+
+    printf("mixer:{\n");
+    printf(" enabled = %d;\n",config.mixer.enabled);
+    printf(" pbob = %d;\n",config.mixer.pbob);
+    printf(" relay = %d;\n",config.mixer.relay);
+    printf("};\n\n");
+
 }

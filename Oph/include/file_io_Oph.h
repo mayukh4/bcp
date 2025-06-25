@@ -83,6 +83,8 @@ typedef struct lockpin_conf{
 	int baud;
 	char *serialport;
 	int duration;
+	int pbob;
+        int relay;
 } lockpin_conf;
 
 typedef struct gps_server_conf{
@@ -119,6 +121,7 @@ typedef struct pbob_conf{
 	int enabled;
 	int id;
 	char *ip;
+	char *workdir;
         int num_relays;
 }pbob_conf;
 
@@ -133,6 +136,18 @@ typedef struct power_conf{
 	struct pbob_conf pbob2;
 }power_conf;
 
+typedef struct lna_conf{
+	int enabled;
+	int pbob;
+	int relay;
+}lna_conf;
+
+typedef struct mixer_conf{
+	int enabled;
+	int pbob;
+	int relay;
+}mixer_conf;
+
 typedef struct conf_params {
     struct main_conf main;
     struct bvexcam_conf bvexcam;
@@ -144,6 +159,8 @@ typedef struct conf_params {
     struct starcam_downlink_conf starcam_downlink;
     struct server_conf server;
     struct power_conf power;
+    struct lna_conf lna;
+    struct mixer_conf mixer;
 } conf_params;
 
 extern struct conf_params config;

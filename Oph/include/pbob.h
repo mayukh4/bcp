@@ -20,11 +20,13 @@ typedef struct {
 } Relay; 
 
 typedef struct {
+    int enabled;
     int handle;
     int num_relays; 
     Relay relays[NUM_RELAYS];
     const char* ip;
     int id;
+    FILE* log;
 } RelayController; 
 
 // Function prototypes - match the actual implementations
@@ -37,5 +39,5 @@ extern RelayController controller[NUM_PBOB];
 extern FILE* pbob_log_file;
 extern int shutdown_pbob;
 extern int pbob_enabled;
-
+extern int pbob_ready;
 #endif

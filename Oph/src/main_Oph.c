@@ -46,6 +46,8 @@ extern int stop_tel;
 extern int tel_server_running;
 extern int shutdown_pbob;
 extern int pbob_enabled;
+extern int receiver_on;
+extern int pbob_ready;
 pthread_t ls_thread;
 extern pthread_t lock_thread;
 extern pthread_t astro_thread_id;
@@ -97,8 +99,8 @@ int main(int argc, char* argv[]) {
 		printf("Starting PBoBs....\n");
 		write_to_log(main_log,"main_Oph.c","main","Starting PBoBs");
 		pthread_create(&pbob_thread,NULL,run_pbob_thread,NULL);
-		while(!pbob_enabled){
-			if(pbob_enabled){
+		while(!pbob_ready){
+			if(pbob_ready){
 				printf("PBoBs started successfully\n");
 				write_to_log(main_log,"main_Oph.c","main","PBoBs started successfully");
 				break;
@@ -245,6 +247,22 @@ int main(int argc, char* argv[]) {
     cmdprompt();
 
     // Shutdown procedures
+
+    //Shutdown receiver if needed
+    if (config.mixer.enabled && config.lna.enabled){
+        if(receiver_on){
+                printf("Powering down receiver\n");
+                write_to_log(main_log, "main_Oph.c", "main", "Powering down receiver");
+                receiver_on = 0;
+                set_toggle(config.lna.pbob,config.lna.relay);
+                set_toggle(config.mixer.pbob,config.mixer.relay);
+                printf("Receiver powered down\n");
+                write_to_log(main_log, "main_Oph.c", "main", "Receiver powered down");
+        }else{
+                printf("Receiver already powered down\n");
+        }
+    }
+
     if (config.bvexcam.enabled) {
 	if (bvexcam_on){
         	pthread_join(astro_thread_id, (void **) &(astro_ptr));
@@ -303,15 +321,19 @@ int main(int argc, char* argv[]) {
     }
 
     if (config.lockpin.enabled){
-	printf("Shutting down lockpin\n");
-	write_to_log(main_log,"Main_Oph.c","main","Shutting down lockpin");
-	exit_lock = 1;
-	pthread_join(lock_thread,NULL);
-	//put PBoB command here
-
-	//
-	printf("Lockpin shutdown complete\n");
-	write_to_log(main_log,"main_Oph.c","main","Lockpin shutdown complete");
+	if(lockpin_on){
+	    printf("Shutting down lockpin\n");
+	    write_to_log(main_log,"Main_Oph.c","main","Shutting down lockpin");
+	    exit_lock = 1;
+	    pthread_join(lock_thread,NULL);
+	    //put PBoB command here
+	    set_toggle(config.lockpin.pbob,config.lockpin.relay);
+	    //
+	    printf("Lockpin shutdown complete\n");
+	    write_to_log(main_log,"main_Oph.c","main","Lockpin shutdown complete");
+	}else{
+	    printf("Lockpin already shutdown\n");
+	}
     }
     if (config.gps_server.enabled){
         printf("Shutting down GPS server\n");

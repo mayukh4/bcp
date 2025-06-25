@@ -9,6 +9,7 @@ extern FILE* main_log;
 extern FILE* cmd_log;
 extern int bvexcam_on;
 extern int lockpin_on;
+extern int receiver_on;
 extern pthread_t lock_thread;
 #endif
 

@@ -65,6 +65,14 @@ void print_motor_PID(){
 	mvprintw(12,0,"Motor I: %lf\n",i_pub);
 	mvprintw(13,0,"Motor D: %lf\n",d_pub);
 }
+double average_vel(){
+	double summed_vel = 0.0;
+	for(int i = 0; i<3; i++){
+		summed_vel += MotorData[i].velocity;
+	}
+
+	return summed_vel/3.0;
+}
 
 static int16_t calculate_current(float v_req){
 	
@@ -87,8 +95,14 @@ static int16_t calculate_current(float v_req){
 	
 	int motor_i = GETREADINDEX(motor_index);
 	
-	float pv = (float) MotorData[motor_index].velocity;
-	
+	float pv = 0.0;
+
+	if((axes_mode.mode == VEL) && ((fabs(v_req) < 1.0) && (fabs(v_req) != 0.0))){
+		pv = (float) average_vel();
+	}else{
+		pv = (float) MotorData[motor_index].velocity;
+	}
+
 	int16_t milliamp_return;
 	static int16_t last_milliamp = 0;
 	int16_t max_delta_mA = config.motor.max_delta;//5
@@ -360,6 +374,8 @@ void track(){
 
 void enc_onoff(){
 	static int on_to_off = 0;
+        static int off_to_off = 0;
+        static int top = 0;
 	static double t_start;
 	double t_now;
 	struct timeval time;
@@ -373,32 +389,45 @@ void enc_onoff(){
 			scan_mode.on_position = 1;
 			t_start = t_now;
 			on_to_off = 0;
+			off_to_off = 0;
+			top = 0;
 			scan_mode.scan++;
 		}
 	}else{
 
-		if((scan_mode.on_position == -1) || (on_to_off == 1)){
+		if(((scan_mode.on_position == -1) || (on_to_off == 1)) && top){
                 	axes_mode.dest += scan_mode.offset;
-       		 }
+       		}else if((scan_mode.on_position == -1) || (off_to_off == 1)){
+			axes_mode.dest -= scan_mode.offset;
+		}
 
-		if((t_now-t_start)>scan_mode.time){
+		if(((t_now-t_start)>scan_mode.time/2.0) && (scan_mode.on_position != 1)){
+			if(scan_mode.on_position == -1){
+				scan_mode.on_position = 0;
+				if (top){
+					off_to_off = 1;
+					top = 0;
+				}else if (!top){
+					on_to_off = -1;
+				}
+			}else if(axes_mode.on_target_el){
+				t_start = t_now;
+				if(on_to_off == 1){
+					scan_mode.on_position = -1;
+					on_to_off = 0;
+				}else if (off_to_off == 1){
+					scan_mode.on_position = -1;
+					off_to_off = 0;
+				}else if (on_to_off == -1){
+					scan_mode.on_position = 1;
+					on_to_off = 0;
+				}
+			}
+		}else if((t_now-t_start)>scan_mode.time){
 			if(scan_mode.on_position == 1){
 				on_to_off = 1;
 				scan_mode.on_position = 0;
-				scan_mode.scan++;
-			}else if(scan_mode.on_position == -1){
-				on_to_off = -1;
-				scan_mode.on_position = 0;
-				scan_mode.scan++;
-			}else if(axes_mode.on_target_el){
-				t_start = t_now;
-				if(on_to_off == -1){
-					scan_mode.on_position = 1;
-					on_to_off = 0;
-				}else if(on_to_off == 1){
-					scan_mode.on_position = -1;
-					on_to_off = 0;
-				}
+				top = 1;
 			}
 		}
 	}

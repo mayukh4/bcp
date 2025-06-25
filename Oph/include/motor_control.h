@@ -50,6 +50,7 @@ void set_el_offset(double cal_angle);
 int start_motor(void);
 void print_motor_PID();
 void go_to_park();
+double average_vel();
 
 extern AxesModeStruct axes_mode;
 extern ScanModeStruct scan_mode;

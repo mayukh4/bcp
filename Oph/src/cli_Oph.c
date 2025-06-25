@@ -50,6 +50,7 @@ extern int count_now;
 extern pthread_t astro_thread_id;
 pthread_t lock_thread;
 extern RelayController controller[NUM_PBOB];
+int receiver_on = 0;
 // This executes the commands, we can simply add commands by adding if statements
 void exec_command(char* input) {
     char* arg;
@@ -510,10 +511,10 @@ void exec_command(char* input) {
 			printf("Starting Lockpin....\n");
 			write_to_log(main_log,"cli_Oph.c","exec_command","Starting lockpin");
 			//PBoB command goes here
-
+			set_toggle(config.lockpin.pbob,config.lockpin.relay);
 			//
 			pthread_create(&lock_thread,NULL,do_lockpin,NULL);
-			while(!lockpin_ready){
+			while(!lockpin_on){
                 		if(lockpin_ready){
                         		printf("Successfully started lockpin\n");
                         		write_to_log(main_log,"cli_Oph.c","exec_command","Successfully started lockpin");
@@ -535,8 +536,9 @@ void exec_command(char* input) {
         		exit_lock = 1;
         		pthread_join(lock_thread,NULL);
 			//PBoB command goes here
-
+			set_toggle(config.lockpin.pbob,config.lockpin.relay);
 			//
+			lockpin_on = 0;
         		printf("Lockpin shutdown complete\n");
        		 	write_to_log(main_log,"cli_Oph.c","exec_command","Lockpin shutdown complete");
 
@@ -628,6 +630,68 @@ void exec_command(char* input) {
 		printf("Starcam downlink is not enabled.\n");
 	}
 
+    }else if (strcmp(cmd,"receiver_start")==0){
+	if(config.lna.enabled && config.mixer.enabled){
+		if(!receiver_on){
+			printf("Powering on receiver");
+                        write_to_log(main_log,"cli_Oph.c","exec_command","Powering on receiver");
+			set_toggle(config.lna.pbob,config.lna.relay);
+			set_toggle(config.mixer.pbob,config.mixer.relay);
+			receiver_on = 1;
+		}else{
+			printf("Receiver already powered on\n");
+		}
+	}else{
+		printf("Receiver not enabled\n");
+	}
+    }else if (strcmp(cmd,"receiver_stop")==0){
+	if(config.lna.enabled && config.mixer.enabled){
+		if(receiver_on){
+			printf("Powering on receiver");
+                        write_to_log(main_log,"cli_Oph.c","exec_command","Powering on receiver");
+			set_toggle(config.lna.pbob,config.lna.relay);
+			set_toggle(config.mixer.pbob,config.mixer.relay);
+			receiver_on = 0;
+		}else{
+			printf("Receiver already powered off\n");
+		}
+	}else{
+		printf("Receiver not enabled\n");
+	}
+    }else if(strcmp(cmd,"power_status")==0){
+	SCREEN* s;
+        char input = 0;
+        int line_count = 0;
+        s = newterm(NULL, stdin, stdout);
+        noecho();
+        timeout(500);
+	if(config.power.enabled){
+		while(input !='\n'){
+			for(int i = 0;i<NUM_PBOB;i++){
+				if(controller[i].enabled){
+					mvprintw(line_count,0,"PBoB %d Status:\n",controller[i].id);
+					line_count++;
+					mvprintw(line_count,0,"==============\n");
+					line_count++;
+					mvprintw(line_count,0,"\n");
+                                	line_count++;
+
+					for (int j=0;j<controller[i].num_relays;j++){
+						mvprintw(line_count,0,"Relay %d: Status = %d, Current = %lf A\n",controller[i].relays[j].relay_id,controller[i].relays[j].state,controller[i].relays[j].current);
+						line_count++;
+					}
+					mvprintw(line_count,0,"\n");
+					line_count++;
+				}
+			}
+			line_count = 0;
+			input=getch();
+		}
+        	endwin();
+        	delscreen(s);
+	}else{
+		printf("Power not enabled\n");
+	}
     }else{
         printf("%s: Unknown command\n", cmd);
     }
