@@ -477,6 +477,7 @@ void exec_command(char* input) {
 				scan_mode.scanning = 1;
 			}else if(strcmp(cmd,"stop") == 0){
 				scan_mode.scanning = 0;
+                                scan_mode.mode = NONE;
 				scan_mode.nscans = 0;
 				scan_mode.scan = 0;
 				scan_mode.turnaround = 1;

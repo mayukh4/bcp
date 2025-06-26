@@ -313,6 +313,7 @@ void do_enc_dither(){
 			axes_mode.vel = 0.0;
 			scan_mode.scanning = 0;
 			scan_mode.scan = 0;
+			scan_mode.mode = NONE;
 			firsttime = 1;
 		}
 	
@@ -421,6 +422,7 @@ void enc_onoff(){
 				}else if (on_to_off == -1){
 					scan_mode.on_position = 1;
 					on_to_off = 0;
+					scan_mode.scan++;
 				}
 			}
 		}else if((t_now-t_start)>scan_mode.time){

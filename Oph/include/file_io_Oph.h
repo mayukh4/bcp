@@ -148,6 +148,12 @@ typedef struct mixer_conf{
 	int relay;
 }mixer_conf;
 
+typedef struct rfsoc_conf{
+        int enabled;
+        int pbob;
+        int relay;
+}rfsoc_conf;
+
 typedef struct conf_params {
     struct main_conf main;
     struct bvexcam_conf bvexcam;
@@ -161,6 +167,7 @@ typedef struct conf_params {
     struct power_conf power;
     struct lna_conf lna;
     struct mixer_conf mixer;
+    struct rfsoc_conf rfsoc;
 } conf_params;
 
 extern struct conf_params config;

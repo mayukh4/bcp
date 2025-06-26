@@ -15,6 +15,7 @@
 #include "astrometry.h"
 #include "motor_control.h"
 #include "ec_motor.h"
+#include "pbob.h"
 
 struct sockaddr_in cliaddr;
 int tel_server_running = 0;
@@ -216,7 +217,7 @@ void send_metric(int sockfd, char* id){
                 sendDouble(sockfd,scan_mode.offset);
         }else if(strcmp(id,"scan_time")==0){
                sendDouble(sockfd,scan_mode.time);
-               }else if(strcmp(id,"scan_op")==0){
+        }else if(strcmp(id,"scan_op")==0){
                 sendInt(sockfd,scan_mode.on_position);
         }else if(strcmp(id,"target_lon")==0){
                 sendDouble(sockfd,target.lon);
@@ -224,6 +225,30 @@ void send_metric(int sockfd, char* id){
 		sendDouble(sockfd,target.lat);
 	}else if(strcmp(id,"target_type")==0){
                 sendString(sockfd,target.type);
+        }else if(strcmp(id,"sc_state")==0){
+		sendInt(sockfd,get_state(config.bvexcam.pbob,config.bvexcam.relay));
+        }else if(strcmp(id,"sc_curr")==0){
+		sendDouble(sockfd,get_relay_current(config.bvexcam.pbob,config.bvexcam.relay));
+	}else if(strcmp(id,"m_state")==0){
+                sendInt(sockfd,get_state(config.motor.pbob,config.motor.relay));
+        }else if(strcmp(id,"m_curr")==0){
+                sendDouble(sockfd,get_relay_current(config.motor.pbob,config.motor.relay));
+        }else if(strcmp(id,"lp_state")==0){
+                sendInt(sockfd,get_state(config.lockpin.pbob,config.lockpin.relay));
+        }else if(strcmp(id,"lp_curr")==0){
+                sendDouble(sockfd,get_relay_current(config.lockpin.pbob,config.lockpin.relay));
+        }else if(strcmp(id,"lna_state")==0){
+                sendInt(sockfd,get_state(config.lna.pbob,config.lna.relay));
+        }else if(strcmp(id,"lna_curr")==0){
+                sendDouble(sockfd,get_relay_current(config.lna.pbob,config.lna.relay));
+        }else if(strcmp(id,"mix_state")==0){
+                sendInt(sockfd,get_state(config.mixer.pbob,config.mixer.relay));
+        }else if(strcmp(id,"mix_curr")==0){
+                sendDouble(sockfd,get_relay_current(config.mixer.pbob,config.mixer.relay));
+        }else if(strcmp(id,"rfsoc_state")==0){
+                sendInt(sockfd,get_state(config.rfsoc.pbob,config.rfsoc.relay));
+        }else if(strcmp(id,"rfsoc_curr")==0){
+                sendDouble(sockfd,get_relay_current(config.rfsoc.pbob,config.rfsoc.relay));
         }else{
 		fprintf(server_log,"[%ld][server.c][send_metric] Received unknown request: '%s'\n",time(NULL),id);
 		fflush(server_log);

@@ -10,6 +10,7 @@
 #define DELAY_US 20000  
 #define MAXLEN 1024
 #define SHUNT_RESISTOR 0.1 // Ohm
+#define CAL_ITER 10 //calibration iterations
 
 typedef struct {
     int relay_id;        
@@ -17,6 +18,7 @@ typedef struct {
     int toggle;
     int registerAddress;
     double current; // Current in Amperes
+    double curr_offset;
 } Relay; 
 
 typedef struct {
@@ -32,6 +34,8 @@ typedef struct {
 // Function prototypes - match the actual implementations
 int run_pbob();
 int set_toggle(int pbob_id, int relay_id);
+int get_state(int pbob_id, int relay_id);
+double get_relay_current(int pbob_id, int relay_id);
 void* run_pbob_thread(void* arg);
 int all_relays_off();
 

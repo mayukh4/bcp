@@ -814,6 +814,22 @@ void read_in_config(char* filepath) {
     }
     config.mixer.relay = tmpint;
 
+    //RFSoC
+    if(!config_lookup_int(&conf,"rfsoc.pbob",&tmpint)){
+        printf("Missing rfsoc.pbob in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.rfsoc.pbob = tmpint;
+
+    if(!config_lookup_int(&conf,"rfsoc.relay",&tmpint)){
+        printf("Missing rfsoc.relay in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.rfsoc.relay = tmpint;
+
+
     config_destroy(&conf);
 }
 
@@ -939,21 +955,21 @@ void print_config() {
     printf("  id = %d\n", config.power.pbob0.id);
     printf("  ip = %s;\n", config.power.pbob0.ip);
     printf("  num_relays = %d;\n", config.power.pbob0.num_relays);
-    printf("  workdir = %d;\n", config.power.pbob0.workdir);
+    printf("  workdir = %s;\n", config.power.pbob0.workdir);
     printf(" };\n");
     printf(" pbob1:{\n");
     printf("  enabled = %d;\n", config.power.pbob1.enabled);
     printf("  id = %d\n", config.power.pbob1.id);
     printf("  ip = %s;\n", config.power.pbob1.ip);
     printf("  num_relays = %d;\n", config.power.pbob1.num_relays);
-    printf("  workdir = %d;\n", config.power.pbob1.workdir);
+    printf("  workdir = %s;\n", config.power.pbob1.workdir);
     printf(" };\n");
     printf(" pbob2:{\n");
     printf("  enabled = %d;\n", config.power.pbob2.enabled);
     printf("  id = %d\n", config.power.pbob2.id);
     printf("  ip = %s;\n", config.power.pbob2.ip);
     printf("  num_relays = %d;\n", config.power.pbob2.num_relays);
-    printf("  workdir = %d;\n", config.power.pbob2.workdir);
+    printf("  workdir = %s;\n", config.power.pbob2.workdir);
     printf(" };\n");
     printf("};\n\n");
 
@@ -967,6 +983,11 @@ void print_config() {
     printf(" enabled = %d;\n",config.mixer.enabled);
     printf(" pbob = %d;\n",config.mixer.pbob);
     printf(" relay = %d;\n",config.mixer.relay);
+    printf("};\n\n");
+
+    printf("rfsoc:{\n");
+    printf(" pbob = %d;\n",config.rfsoc.pbob);
+    printf(" relay = %d;\n",config.rfsoc.relay);
     printf("};\n\n");
 
 }

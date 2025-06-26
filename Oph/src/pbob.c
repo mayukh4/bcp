@@ -65,6 +65,33 @@ int set_toggle(int pbob_id, int relay_id){
     return 0; // Relay not found or PBOB not found
 }
 
+double get_relay_current(int pbob_id, int relay_id){
+	for(int j = 0; j<NUM_PBOB; j++){
+                if(controller[j].id == pbob_id){
+                        for(int i=0; i<controller[j].num_relays; i++){
+                                if(controller[j].relays[i].relay_id == relay_id){
+                                        return controller[j].relays[i].current;
+                                }
+                        }
+                }
+        }
+
+    return 0.0;
+}
+
+int get_state(int pbob_id, int relay_id){
+        for(int j = 0; j<NUM_PBOB; j++){
+                if(controller[j].id == pbob_id){
+                        for(int i=0; i<controller[j].num_relays; i++){
+                                if(controller[j].relays[i].relay_id == relay_id){
+                                        return controller[j].relays[i].state;
+                                }
+                        }
+                }
+        }
+
+    return 0;
+}
 /*
 * This function handles errors from LabJack operations.
 * It logs the error message to the log file and prints it to the console.
@@ -504,6 +531,7 @@ int run_pbob() {
                 controller[i].relays[j].registerAddress = regs[j];
                 controller[i].relays[j].relay_id = j;
                 controller[i].relays[j].state = false;
+                controller[i].relays[j].curr_offset = 0.0;
                 // controller[i].relays[j].pin = pins[j]; // Removed - pin field doesn't exist in Relay struct
             }
             controller[i].handle = 0;
@@ -579,7 +607,7 @@ static void read_relay_current(RelayController* ctrl, Relay* rly) {
         handle_ljm_error(err, "reading analog input", rly->relay_id, "read_relay_current");
         return;
     } else {
-        current = voltage/SHUNT_RESISTOR;
+        current = voltage/SHUNT_RESISTOR - rly->curr_offset;
         snprintf(message, sizeof(message), "Current read from %s: %.6f A", channel_name, current);
         write_to_log(pbob_log_file, "pbob.c", "read_relay_current", message);
     }
@@ -608,6 +636,24 @@ void start_new_files(){
 /*
 * Thread function to run the PBOB relay control system.
 * It continuously checks for relay toggles and performs shutdown if requested.*/
+
+//This calibrates for the dead current
+void calibrate_current(){
+        for(int i=0;i<NUM_PBOB; i++) {
+            if(controller[i].enabled){
+                for (int j = 0;j<controller[i].num_relays;j++){
+                        double summed = 0;
+                        for (int k=0;k<CAL_ITER;k++){
+                                read_relay_current(&controller[i], &controller[i].relays[j]);
+                                summed += controller[i].relays[j].current;
+                                usleep(200000);
+                        }
+                        controller[i].relays[j].curr_offset = summed/CAL_ITER;
+                }
+            }
+        }
+}
+
 void* run_pbob_thread(void* arg) {
     char message[256];
     static int t_prev=0;
@@ -617,6 +663,7 @@ void* run_pbob_thread(void* arg) {
     gettimeofday(&tv_now,NULL);
     t_prev = tv_now.tv_sec;
     run_pbob();
+    calibrate_current();
     pbob_ready = 1;
     while(1) {
 	gettimeofday(&tv_now,NULL);
