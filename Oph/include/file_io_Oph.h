@@ -105,8 +105,6 @@ typedef struct starcam_downlink_conf{
 	int image_timeout_sec;
 	char *workdir;
 	char *notification_file;
-	char **udp_client_ips;
-	int num_client_ips;
 } starcam_downlink_conf;
 
 typedef struct server_conf{

@@ -135,8 +135,6 @@ int main(int argc, char* argv[]) {
         starcam_config.image_timeout_sec = config.starcam_downlink.image_timeout_sec;
         strncpy(starcam_config.workdir, config.starcam_downlink.workdir, sizeof(starcam_config.workdir) - 1);
         strncpy(starcam_config.notification_file, config.starcam_downlink.notification_file, sizeof(starcam_config.notification_file) - 1);
-        starcam_config.udp_client_ips = config.starcam_downlink.udp_client_ips;
-        starcam_config.num_client_ips = config.starcam_downlink.num_client_ips;
         
         if (initStarcamDownlink() != 0) {
             printf("Error initializing starcam downlink.\n");

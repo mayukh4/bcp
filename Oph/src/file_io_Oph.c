@@ -565,28 +565,6 @@ void read_in_config(char* filepath) {
     }
     config.starcam_downlink.notification_file = strdup(tmpstr);
 
-    // Read UDP client IPs array
-    config_setting_t *client_ips_setting = config_lookup(&conf, "starcam_downlink.udp_client_ips");
-    if (client_ips_setting != NULL && config_setting_is_array(client_ips_setting)) {
-        config.starcam_downlink.num_client_ips = config_setting_length(client_ips_setting);
-        config.starcam_downlink.udp_client_ips = malloc(config.starcam_downlink.num_client_ips * sizeof(char*));
-        
-        for (int i = 0; i < config.starcam_downlink.num_client_ips; i++) {
-            config_setting_t *ip_setting = config_setting_get_elem(client_ips_setting, i);
-            if (ip_setting && config_setting_type(ip_setting) == CONFIG_TYPE_STRING) {
-                config.starcam_downlink.udp_client_ips[i] = strdup(config_setting_get_string(ip_setting));
-            } else {
-                printf("Invalid IP address in starcam_downlink.udp_client_ips[%d]\n", i);
-                config_destroy(&conf);
-                exit(0);
-            }
-        }
-    } else {
-        // Default: no client IPs configured (request-response mode only)
-        config.starcam_downlink.num_client_ips = 0;
-        config.starcam_downlink.udp_client_ips = NULL;
-    }
-
     // Server configuration
     if(!config_lookup_int(&conf,"server.enabled",&tmpint)){
         printf("Missing server.enabled in %s\n",filepath);
@@ -928,12 +906,6 @@ void print_config() {
     printf(" image_timeout_sec = %d;\n",config.starcam_downlink.image_timeout_sec);
     printf(" workdir = %s;\n",config.starcam_downlink.workdir);
     printf(" notification_file = %s;\n",config.starcam_downlink.notification_file);
-    printf(" udp_client_ips = [");
-    for (int i = 0; i < config.starcam_downlink.num_client_ips; i++) {
-        printf("\"%s\"", config.starcam_downlink.udp_client_ips[i]);
-        if (i < config.starcam_downlink.num_client_ips - 1) printf(", ");
-    }
-    printf("];\n");
     printf("};\n\n"); 
 
     printf("server:{\n");
