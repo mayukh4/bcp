@@ -342,14 +342,14 @@ static int initialize_parameters(int pbob_index, RelayController* ctrl) {
             ip = config.power.pbob0.ip;
             num_relays = config.power.pbob0.num_relays;
             id = config.power.pbob0.id;
-	    snprintf(path,sizeof(path),"%s/pbob%d_current_%ld.txt",config.power.pbob0.workdir,id,time(NULL));
+	        snprintf(path,sizeof(path),"%s/pbob%d_current_%ld.txt",config.power.pbob0.workdir,id,time(NULL));
             break;
         case 1:
             enabled = config.power.pbob1.enabled;
             ip = config.power.pbob1.ip;
             num_relays = config.power.pbob1.num_relays;
             id = config.power.pbob1.id;
-	    snprintf(path,sizeof(path),"%s/pbob%d_current_%ld.txt",config.power.pbob1.workdir,id,time(NULL));
+	        snprintf(path,sizeof(path),"%s/pbob%d_current_%ld.txt",config.power.pbob1.workdir,id,time(NULL));
             break;
         case 2:
             enabled = config.power.pbob2.enabled;
@@ -389,8 +389,8 @@ static void sendInt_pbob(int sockfd, int sample) {
 	char string_sample[6];
 
 	snprintf(string_sample,6,"%d",sample);
-        sendto(sockfd, (const char*) string_sample, strlen(string_sample), MSG_CONFIRM,(const struct sockaddr *) &cliaddr_pbob, sizeof(cliaddr_pbob));
-        return;
+    sendto(sockfd, (const char*) string_sample, strlen(string_sample), MSG_CONFIRM,(const struct sockaddr *) &cliaddr_pbob, sizeof(cliaddr_pbob));
+    return;
 }
 
 static void sendDouble(int sockfd,double sample) {
@@ -624,13 +624,12 @@ void start_new_files(){
 				snprintf(path,sizeof(path),"%s/pbob%d_current_%ld.txt",config.power.pbob0.workdir,controller[i].id,time(NULL));
 			}else if(controller[i].id == config.power.pbob1.id){
 				snprintf(path,sizeof(path),"%s/pbob%d_current_%ld.txt",config.power.pbob1.workdir,controller[i].id,time(NULL));
-                	}else if(controller[i].id == config.power.pbob2.id){
+            }else if(controller[i].id == config.power.pbob2.id){
 				snprintf(path,sizeof(path),"%s/pbob%d_current_%ld.txt",config.power.pbob2.workdir,controller[i].id,time(NULL));
-                	}
+            }
 			controller[i].log = fopen(path,"w");
 		}
-        }
-
+    }
 }
 
 /*
@@ -666,22 +665,23 @@ void* run_pbob_thread(void* arg) {
     calibrate_current();
     pbob_ready = 1;
     while(1) {
-	gettimeofday(&tv_now,NULL);
-	time = tv_now.tv_sec+tv_now.tv_usec/1e6;
-	if(tv_now.tv_sec-t_prev>600){
-		t_prev = tv_now.tv_sec;
-		start_new_files();
-	}
+	    gettimeofday(&tv_now,NULL);
+	    time = tv_now.tv_sec+tv_now.tv_usec/1e6;
+	    if(tv_now.tv_sec-t_prev>600){
+		    t_prev = tv_now.tv_sec;
+		    start_new_files();
+	    }
         for(int i = 0; i < NUM_PBOB; i++) {
             if(controller[i].enabled){
-	        fprintf(controller[i].log,"%lf;",time);
+	            fprintf(controller[i].log,"%lf;",time);
                 for(int j = 0; j < controller[i].num_relays; j++) {
                     read_relay_current(&controller[i], &controller[i].relays[j]);
-		    if(j == controller[i].num_relays-1){
-			fprintf(controller[i].log,"%f\n",controller[i].relays[j].current);
-		     }else{
-			fprintf(controller[i].log,"%f;",controller[i].relays[j].current);
-                     }
+		            if (j == controller[i].num_relays-1){
+			            fprintf(controller[i].log,"%f\n",controller[i].relays[j].current);
+		            } else{
+			            fprintf(controller[i].log,"%f;",controller[i].relays[j].current);
+                    }
+                    
                     if (controller[i].relays[j].toggle) {
                         toggle_relay(&controller[i], j);
                         controller[i].relays[j].toggle = 0;
@@ -694,14 +694,14 @@ void* run_pbob_thread(void* arg) {
             break; // Exit the loop if shutdown is requested and all relays are OFF
         }
 
-	usleep(200000);
+	    usleep(200000);
     }
 
     for (int i = 0; i < NUM_PBOB; i++) {
-	if(controller[i].enabled){
+	    if(controller[i].enabled){
         	close_labjack(&controller[i]); // Close LabJack connection
-		fclose(controller[i].log);//
-	}
+		    fclose(controller[i].log);//
+	    }
     }
 
     stop_pbob_server = 1; // Signal the server thread to stop

@@ -16,6 +16,7 @@
 #include "motor_control.h"
 #include "ec_motor.h"
 #include "pbob.h"
+#include "system_monitor.h"
 
 struct sockaddr_in cliaddr;
 int tel_server_running = 0;
@@ -217,7 +218,9 @@ void send_metric(int sockfd, char* id){
                 sendDouble(sockfd,scan_mode.offset);
         }else if(strcmp(id,"scan_time")==0){
                sendDouble(sockfd,scan_mode.time);
-        }else if(strcmp(id,"scan_op")==0){
+        }else if(strcmp(id,"scan_len")==0){
+               sendDouble(sockfd,scan_mode.scan_len);
+	}else if(strcmp(id,"scan_op")==0){
                 sendInt(sockfd,scan_mode.on_position);
         }else if(strcmp(id,"target_lon")==0){
                 sendDouble(sockfd,target.lon);
@@ -249,6 +252,104 @@ void send_metric(int sockfd, char* id){
                 sendInt(sockfd,get_state(config.rfsoc.pbob,config.rfsoc.relay));
         }else if(strcmp(id,"rfsoc_curr")==0){
                 sendDouble(sockfd,get_relay_current(config.rfsoc.pbob,config.rfsoc.relay));
+        }else if(strcmp(id,"gps_state")==0){
+		sendInt(sockfd,get_state(config.gps.pbob,config.gps.relay));
+	}else if(strcmp(id,"gps_curr")==0){
+                sendDouble(sockfd,get_relay_current(config.gps.pbob,config.gps.relay));
+        }else if(strcmp(id,"bkd_state")==0){
+                sendInt(sockfd,get_state(config.backend.pbob,config.backend.relay));
+        }else if(strcmp(id,"bkd_curr")==0){
+                sendDouble(sockfd,get_relay_current(config.backend.pbob,config.backend.relay));
+        }else if(strcmp(id,"oph_sys_cpu_temp")==0){
+                // CPU temperature in Celsius
+                if (config.system_monitor.enabled) {
+                    pthread_mutex_lock(&sys_monitor.data_mutex);
+                    sendFloat(sockfd, sys_monitor.cpu_temp_celsius);
+                    pthread_mutex_unlock(&sys_monitor.data_mutex);
+                } else {
+                    sendFloat(sockfd, -1.0);  // Indicate not available
+                }
+        }else if(strcmp(id,"oph_sys_cpu_usage")==0){
+                // CPU usage percentage
+                if (config.system_monitor.enabled) {
+                    pthread_mutex_lock(&sys_monitor.data_mutex);
+                    sendFloat(sockfd, sys_monitor.cpu_usage_percent);
+                    pthread_mutex_unlock(&sys_monitor.data_mutex);
+                } else {
+                    sendFloat(sockfd, -1.0);  // Indicate not available
+                }
+        }else if(strcmp(id,"oph_sys_mem_used")==0){
+                // Memory used in GB
+                if (config.system_monitor.enabled) {
+                    pthread_mutex_lock(&sys_monitor.data_mutex);
+                    sendFloat(sockfd, sys_monitor.memory_used_gb);
+                    pthread_mutex_unlock(&sys_monitor.data_mutex);
+                } else {
+                    sendFloat(sockfd, -1.0);  // Indicate not available
+                }
+        }else if(strcmp(id,"oph_sys_mem_total")==0){
+                // Total memory in GB
+                if (config.system_monitor.enabled) {
+                    pthread_mutex_lock(&sys_monitor.data_mutex);
+                    sendFloat(sockfd, sys_monitor.memory_total_gb);
+                    pthread_mutex_unlock(&sys_monitor.data_mutex);
+                } else {
+                    sendFloat(sockfd, -1.0);  // Indicate not available
+                }
+        }else if(strcmp(id,"oph_sys_mem_used_str")==0){
+                // Memory used as string with units
+                if (config.system_monitor.enabled) {
+                    pthread_mutex_lock(&sys_monitor.data_mutex);
+                    sendString(sockfd, sys_monitor.memory_used_str);
+                    pthread_mutex_unlock(&sys_monitor.data_mutex);
+                } else {
+                    sendString(sockfd, "N/A");
+                }
+        }else if(strcmp(id,"oph_sys_mem_total_str")==0){
+                // Total memory as string with units
+                if (config.system_monitor.enabled) {
+                    pthread_mutex_lock(&sys_monitor.data_mutex);
+                    sendString(sockfd, sys_monitor.memory_total_str);
+                    pthread_mutex_unlock(&sys_monitor.data_mutex);
+                } else {
+                    sendString(sockfd, "N/A");
+                }
+        }else if(strcmp(id,"oph_sys_ssd_mounted")==0){
+                // SSD mounted status (1 = mounted, 0 = not mounted)
+                if (config.system_monitor.enabled) {
+                    pthread_mutex_lock(&sys_monitor.data_mutex);
+                    sendInt(sockfd, sys_monitor.ssd_mounted);
+                    pthread_mutex_unlock(&sys_monitor.data_mutex);
+                } else {
+                    sendInt(sockfd, -1);  // Indicate not available
+                }
+        }else if(strcmp(id,"oph_sys_ssd_used")==0){
+                // SSD used space as string with units
+                if (config.system_monitor.enabled) {
+                    pthread_mutex_lock(&sys_monitor.data_mutex);
+                    sendString(sockfd, sys_monitor.ssd_used);
+                    pthread_mutex_unlock(&sys_monitor.data_mutex);
+                } else {
+                    sendString(sockfd, "N/A");
+                }
+        }else if(strcmp(id,"oph_sys_ssd_total")==0){
+                // SSD total space as string with units
+                if (config.system_monitor.enabled) {
+                    pthread_mutex_lock(&sys_monitor.data_mutex);
+                    sendString(sockfd, sys_monitor.ssd_total);
+                    pthread_mutex_unlock(&sys_monitor.data_mutex);
+                } else {
+                    sendString(sockfd, "N/A");
+                }
+        }else if(strcmp(id,"oph_sys_ssd_path")==0){
+                // SSD mount path
+                if (config.system_monitor.enabled) {
+                    pthread_mutex_lock(&sys_monitor.data_mutex);
+                    sendString(sockfd, sys_monitor.ssd_mount_path);
+                    pthread_mutex_unlock(&sys_monitor.data_mutex);
+                } else {
+                    sendString(sockfd, "N/A");
+                }
         }else{
 		fprintf(server_log,"[%ld][server.c][send_metric] Received unknown request: '%s'\n",time(NULL),id);
 		fflush(server_log);

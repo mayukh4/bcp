@@ -19,6 +19,7 @@
 #include "starcam_downlink.h"
 #include "server.h"
 #include "pbob.h"
+#include "system_monitor.h"
 
 // This is the main struct that stores all the config parameters
 struct conf_params config;
@@ -240,9 +241,36 @@ int main(int argc, char* argv[]) {
     	}
     }
     
+    // Start system monitor if enabled
+    if (config.system_monitor.enabled){
+	printf("Starting system monitor....\n");
+	write_to_log(main_log,"main_Oph.c","main","Starting system monitor");
+	printf("Starting system monitor log....\n");
+	write_to_log(main_log,"main_Oph.c","main","Starting system monitor log");
+	system_monitor_log = fopen(config.system_monitor.logfile,"w");
+	if(system_monitor_log == NULL){
+		printf("Error starting system monitor log %s: No such file or directory \n", config.system_monitor.logfile);
+		write_to_log(main_log, "main_Oph.c", "main", "Error opening system monitor log: No such file or directory");
+	}else{
+		if(init_system_monitor() == 0){
+			pthread_create(&system_monitor_thread,NULL,run_system_monitor_thread,NULL);
+			sleep(1); // Give it a moment to start
+			if(system_monitor_running){
+				printf("Successfully started system monitor\n");
+				write_to_log(main_log,"main_Oph.c","main","Successfully started system monitor");
+			}else{
+				printf("Failed to start system monitor\n");
+				write_to_log(main_log,"main_Oph.c","main","Failed to start system monitor");
+			}
+		}else{
+			printf("Failed to initialize system monitor\n");
+			write_to_log(main_log,"main_Oph.c","main","Failed to initialize system monitor");
+		}
+    	}
+    }
+    
     printf("\n");
-    // Start command-line
-    cmdprompt();
+    do_commands();
 
     // Shutdown procedures
 
@@ -359,6 +387,15 @@ int main(int argc, char* argv[]) {
 		printf("Telemetry server already down\n");
 		write_to_log(main_log,"main_Oph.c","main","Telemetry server already down");
 	}
+    }
+
+    // Shutdown system monitor if it was enabled
+    if (config.system_monitor.enabled) {
+        printf("Shutting down system monitor\n");
+        write_to_log(main_log, "main_Oph.c", "main", "Shutting down system monitor");
+        shutdown_system_monitor();
+        printf("System monitor shutdown complete.\n");
+        write_to_log(main_log, "main_Oph.c", "main", "System monitor shutdown complete");
     }
 
     // Shutdown starcam downlink if it was enabled

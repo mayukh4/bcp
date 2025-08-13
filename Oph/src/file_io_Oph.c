@@ -806,7 +806,86 @@ void read_in_config(char* filepath) {
         exit(0);
     }
     config.rfsoc.relay = tmpint;
+    //cmd_server
+    if(!config_lookup_int(&conf,"cmd_server.port",&tmpint)){
+        printf("Missing cmd_server.port in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.cmd_server.port = tmpint;
 
+    if(!config_lookup_int(&conf,"cmd_server.timeout",&tmpint)){
+        printf("Missing cmd_server.timeout in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.cmd_server.timeout = tmpint;
+
+    if(!config_lookup_int(&conf,"gps.pbob",&tmpint)){
+        printf("Missing gps.pbob in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.gps.pbob = tmpint;
+
+    if(!config_lookup_int(&conf,"gps.relay",&tmpint)){
+        printf("Missing gps.relay in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.gps.relay = tmpint;
+
+
+    if(!config_lookup_int(&conf,"backend.pbob",&tmpint)){
+        printf("Missing backend.pbob in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.backend.pbob = tmpint;
+
+    if(!config_lookup_int(&conf,"backend.relay",&tmpint)){
+        printf("Missing backend.relay in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.backend.relay = tmpint;
+
+    //timing_box
+    if(!config_lookup_int(&conf,"timing_box.pbob",&tmpint)){
+        printf("Missing timing_box.pbob in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.timing_box.pbob = tmpint;
+
+    if(!config_lookup_int(&conf,"timing_box.relay",&tmpint)){
+        printf("Missing timing_box.relay in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.timing_box.relay = tmpint;
+
+    // System monitor configuration
+    if(!config_lookup_int(&conf,"system_monitor.enabled",&tmpint)){
+        printf("Missing system_monitor.enabled in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.system_monitor.enabled = tmpint;
+
+    if(!config_lookup_string(&conf,"system_monitor.logfile",&tmpstr)){
+        printf("Missing system_monitor.logfile in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.system_monitor.logfile = strdup(tmpstr);
+
+    if(!config_lookup_int(&conf,"system_monitor.update_interval_sec",&tmpint)){
+        printf("Missing system_monitor.update_interval_sec in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.system_monitor.update_interval_sec = tmpint;
 
     config_destroy(&conf);
 }
@@ -960,6 +1039,22 @@ void print_config() {
     printf("rfsoc:{\n");
     printf(" pbob = %d;\n",config.rfsoc.pbob);
     printf(" relay = %d;\n",config.rfsoc.relay);
+    printf("};\n\n");
+
+    printf("gps:{\n");
+    printf(" pbob = %d;\n",config.gps.pbob);
+    printf(" relay = %d;\n",config.gps.relay);
+    printf("};\n\n");
+
+    printf("timing_box:{\n");
+    printf(" pbob = %d;\n",config.timing_box.pbob);
+    printf(" relay = %d;\n",config.timing_box.relay);
+    printf("};\n\n");
+
+    printf("system_monitor:{\n");
+    printf(" enabled = %d;\n",config.system_monitor.enabled);
+    printf(" logfile = %s;\n",config.system_monitor.logfile);
+    printf(" update_interval_sec = %d;\n",config.system_monitor.update_interval_sec);
     printf("};\n\n");
 
 }

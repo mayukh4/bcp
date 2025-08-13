@@ -152,6 +152,32 @@ typedef struct rfsoc_conf{
         int relay;
 }rfsoc_conf;
 
+typedef struct cmd_server_conf{
+	int port;
+	int timeout;
+}cmd_server_conf;
+
+typedef struct gps_conf{
+	int pbob;
+	int relay;
+}gps_conf;
+
+typedef struct backend_conf{
+	int pbob;
+	int relay;
+}backend_conf;
+
+typedef struct timing_box_conf{
+	int pbob;
+	int relay;
+}timing_box_conf;
+
+typedef struct system_monitor_conf {
+    int enabled;
+    char *logfile;
+    int update_interval_sec;  // How often to update metrics (in seconds)
+} system_monitor_conf;
+
 typedef struct conf_params {
     struct main_conf main;
     struct bvexcam_conf bvexcam;
@@ -166,6 +192,11 @@ typedef struct conf_params {
     struct lna_conf lna;
     struct mixer_conf mixer;
     struct rfsoc_conf rfsoc;
+    struct cmd_server_conf cmd_server;
+    struct gps_conf gps;
+    struct backend_conf backend;
+    struct timing_box_conf timing_box;
+    struct system_monitor_conf system_monitor;
 } conf_params;
 
 extern struct conf_params config;

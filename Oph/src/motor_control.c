@@ -320,6 +320,119 @@ void do_enc_dither(){
 	}
 
 }
+
+void track_dither(){
+        SkyCoord azel_coord;
+	AzEl_from_RaDec(&target,&azel_coord);
+        scan_mode.start_el = azel_coord.lat - scan_mode.scan_len/2;
+	scan_mode.stop_el = azel_coord.lat + scan_mode.scan_len/2;
+	do_enc_dither();
+}
+
+void skydip_track(){
+
+	double el_prev;
+	static double t_start;
+        double t_now;
+        struct timeval time;
+	static int on_skydip = 0;
+	static int ascending;
+	static int done_scan = 0;
+	int motor_i;
+        double curr_pos;
+        double pos_tol;
+
+	gettimeofday(&time,NULL);
+        t_now = time.tv_sec+time.tv_usec/1e6;
+	SkyCoord azel_coord;
+        AzEl_from_RaDec(&target,&azel_coord);
+
+	motor_i = GETREADINDEX(motor_index);
+
+        curr_pos = MotorData[motor_i].position;
+
+
+	if(scan_mode.scan == 0){
+		el_prev = azel_coord.lat;
+		t_start = t_now;
+		track();
+		scan_mode.scan++;
+	}else{
+		if(!on_skydip){
+			if((el_prev-azel_coord.lat)>0){
+				ascending = 0;
+			}else{
+				ascending = 1;
+			}
+		}//Only reset these when we are not sky-dipping
+
+		if(ascending){
+			if((t_now-t_start)>scan_mode.time){
+                                if(!on_skydip){
+                                        if(done_scan){
+                                                go_to_enc(scan_mode.start_el);
+                                                if(axes_mode.on_target){
+                                                        done_scan = 0;
+                                                        t_start=t_now;
+                                                        track();
+                                                        scan_mode.scan++;
+                                                }
+                                        }else{
+                                                scan_mode.stop_el = azel_coord.lat+scan_mode.scan_len;
+                                                scan_mode.start_el = azel_coord.lat-2.0;//add padding for backlash
+                                                on_skydip = 1;
+                                                axes_mode.mode=VEL;
+                                                axes_mode.vel=scan_mode.vel;
+                                                scan_mode.scan++;
+                                                axes_mode.on_target = 0;
+					}
+                                }else{
+                                        if(curr_pos > scan_mode.stop_el){
+                                                go_to_enc(scan_mode.start_el);
+						on_skydip = 0;
+                                                done_scan = 1;
+                                        }
+                                }
+                        }else{
+                                track();
+                        }
+
+		}else{
+			if((t_now-t_start)>scan_mode.time){
+                                if(!on_skydip){
+					if(done_scan){
+						go_to_enc(scan_mode.start_el);
+						if(axes_mode.on_target){
+							done_scan = 0;
+							t_start=t_now;
+							track();
+							scan_mode.scan++;
+						}
+					}else{
+						scan_mode.stop_el = azel_coord.lat-scan_mode.scan_len;
+                                        	scan_mode.start_el = azel_coord.lat+2.0;//add padding for backlash
+						on_skydip = 1;
+                                        	axes_mode.mode=VEL;
+                                        	axes_mode.vel=(-1)*scan_mode.vel;
+                                        	scan_mode.scan++;
+                                        	axes_mode.on_target = 0;
+					}
+				}else{
+                                        if(curr_pos <  scan_mode.stop_el){
+                                                go_to_enc(scan_mode.start_el);
+						done_scan = 1;
+						on_skydip = 0;
+                                        }
+                                }
+                        }else{
+                                track();
+                        }
+
+
+		}
+	}
+}
+
 void track(){
 	double el_delta;
 	double az_delta;
@@ -482,8 +595,13 @@ void command_motor(void){
 			track();
 		}else if(scan_mode.mode == EL_ONOFF){
 			enc_onoff();
+		}else if(scan_mode.mode == TRACK_DITHER){
+			track_dither();
+		}else if(scan_mode.mode == SD_TRACK){
+			skydip_track();
 		}
 	}
+	
 	if(config.bvexcam.enabled){
 		//if(check_sc()){
 			//set_el_offset(all_astro_params.alt);
