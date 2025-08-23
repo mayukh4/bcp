@@ -25,6 +25,7 @@ ScanModeStruct scan_mode = {
 	.mode = NONE,
 	.turnaround = 1,
 	.scanning = 0,
+	.firsttime = 1,
 };
 
 SkyCoord target = {
@@ -243,7 +244,6 @@ void go_to_park(){
 
 void do_enc_dither(){
 
-	static int firsttime = 1;
 	int motor_i;
 	double curr_pos;
         double pos_tol;
@@ -254,13 +254,13 @@ void do_enc_dither(){
 
 	pos_tol = config.motor.pos_tol;
 	
-	if(firsttime){
+	if(scan_mode.firsttime){
 		if(scan_mode.start_el>scan_mode.stop_el){
 		
 			if((curr_pos > scan_mode.start_el+pos_tol) || (curr_pos < scan_mode.start_el)){
 				go_to_enc(scan_mode.start_el);
 			}else{
-				firsttime = 0;
+				scan_mode.firsttime = 0;
 				axes_mode.mode = VEL;
 				scan_mode.scan = 0;
 				scan_mode.start_to_stop = -1;	
@@ -272,7 +272,7 @@ void do_enc_dither(){
 			if((curr_pos < scan_mode.start_el-pos_tol) || (curr_pos > scan_mode.start_el)){
 				go_to_enc(scan_mode.start_el);
 			}else{
-				firsttime = 0;
+				scan_mode.firsttime = 0;
 				axes_mode.mode = VEL;
 				scan_mode.scan = 0;
 				scan_mode.start_to_stop = 1;	
@@ -314,7 +314,7 @@ void do_enc_dither(){
 			scan_mode.scanning = 0;
 			scan_mode.scan = 0;
 			scan_mode.mode = NONE;
-			firsttime = 1;
+			scan_mode.firsttime = 1;
 		}
 	
 	}

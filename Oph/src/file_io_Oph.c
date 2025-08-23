@@ -887,6 +887,63 @@ void read_in_config(char* filepath) {
     }
     config.system_monitor.update_interval_sec = tmpint;
 
+    // Housekeeping configuration
+    if(!config_lookup_int(&conf,"housekeeping.enabled",&tmpint)){
+        printf("Missing housekeeping.enabled in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.housekeeping.enabled = tmpint;
+
+    if(!config_lookup_string(&conf,"housekeeping.logfile",&tmpstr)){
+        printf("Missing housekeeping.logfile in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.housekeeping.logfile = strdup(tmpstr);
+
+    if(!config_lookup_string(&conf,"housekeeping.data_path",&tmpstr)){
+        printf("Missing housekeeping.data_path in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.housekeeping.data_path = strdup(tmpstr);
+
+    if(!config_lookup_int(&conf,"housekeeping.pbob",&tmpint)){
+        printf("Missing housekeeping.pbob in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.housekeeping.pbob = tmpint;
+
+    if(!config_lookup_int(&conf,"housekeeping.relay",&tmpint)){
+        printf("Missing housekeeping.relay in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.housekeeping.relay = tmpint;
+
+    if(!config_lookup_int(&conf,"housekeeping.file_rotation_interval",&tmpint)){
+        printf("Missing housekeeping.file_rotation_interval in %s\n",filepath);
+        config_destroy(&conf);
+        exit(0);
+    }
+    config.housekeeping.file_rotation_interval = tmpint;
+
+    if(!config_lookup_int(&conf,"heaters.pbob",&tmpint)) {
+	printf("Missing heaters.pbob in %s\n", filepath);
+	config_destroy(&conf);
+	exit(0);
+    }
+    config.heaters.pbob = tmpint;
+
+    if(!config_lookup_int(&conf,"heaters.relay",&tmpint)) {
+	printf("Missing heaters.relay in %s\n", filepath);
+	config_destroy(&conf);
+	exit(0);
+    }
+    config.heaters.relay = tmpint;
+
     config_destroy(&conf);
 }
 
@@ -1055,6 +1112,15 @@ void print_config() {
     printf(" enabled = %d;\n",config.system_monitor.enabled);
     printf(" logfile = %s;\n",config.system_monitor.logfile);
     printf(" update_interval_sec = %d;\n",config.system_monitor.update_interval_sec);
+    printf("};\n\n");
+
+    printf("housekeeping:{\n");
+    printf(" enabled = %d;\n",config.housekeeping.enabled);
+    printf(" logfile = %s;\n",config.housekeeping.logfile);
+    printf(" data_path = %s;\n",config.housekeeping.data_path);
+    printf(" pbob = %d;\n",config.housekeeping.pbob);
+    printf(" relay = %d;\n",config.housekeeping.relay);
+    printf(" file_rotation_interval = %d;\n",config.housekeeping.file_rotation_interval);
     printf("};\n\n");
 
 }

@@ -17,6 +17,7 @@
 #include "ec_motor.h"
 #include "pbob.h"
 #include "system_monitor.h"
+#include "housekeeping.h"
 
 struct sockaddr_in cliaddr;
 int tel_server_running = 0;
@@ -350,6 +351,147 @@ void send_metric(int sockfd, char* id){
                 } else {
                     sendString(sockfd, "N/A");
                 }
+        }else if(strcmp(id,"hk_ocxo_temp")==0){
+                // OCXO temperature from TMP117 I2C sensor
+                if (config.housekeeping.enabled && housekeeping_running) {
+                    pthread_mutex_lock(&housekeeping_data_mutex);
+                    sendFloat(sockfd, latest_housekeeping_data.ocxo_temp_c);
+                    pthread_mutex_unlock(&housekeeping_data_mutex);
+                } else {
+                    sendFloat(sockfd, -999.0);  // Indicate not available
+                }
+        }else if(strcmp(id,"hk_ocxo_temp_ready")==0){
+                // OCXO temperature data ready flag
+                if (config.housekeeping.enabled && housekeeping_running) {
+                    pthread_mutex_lock(&housekeeping_data_mutex);
+                    sendInt(sockfd, latest_housekeeping_data.temp_data_ready);
+                    pthread_mutex_unlock(&housekeeping_data_mutex);
+                } else {
+                    sendInt(sockfd, 0);
+                }
+        }else if(strcmp(id,"hk_pv_pressure_bar")==0){
+                // Pump-down valve pressure in bar
+                if (config.housekeeping.enabled && housekeeping_running) {
+                    pthread_mutex_lock(&housekeeping_data_mutex);
+                    sendFloat(sockfd, latest_housekeeping_data.pv_pressure_bar);
+                    pthread_mutex_unlock(&housekeeping_data_mutex);
+                } else {
+                    sendFloat(sockfd, -999.0);
+                }
+        }else if(strcmp(id,"hk_pv_pressure_psi")==0){
+                // Pump-down valve pressure in PSI
+                if (config.housekeeping.enabled && housekeeping_running) {
+                    pthread_mutex_lock(&housekeeping_data_mutex);
+                    sendFloat(sockfd, latest_housekeeping_data.pv_pressure_psi);
+                    pthread_mutex_unlock(&housekeeping_data_mutex);
+                } else {
+                    sendFloat(sockfd, -999.0);
+                }
+        }else if(strcmp(id,"hk_pv_pressure_torr")==0){
+                // Pump-down valve pressure in Torr
+                if (config.housekeeping.enabled && housekeeping_running) {
+                    pthread_mutex_lock(&housekeeping_data_mutex);
+                    sendFloat(sockfd, latest_housekeeping_data.pv_pressure_torr);
+                    pthread_mutex_unlock(&housekeeping_data_mutex);
+                } else {
+                    sendFloat(sockfd, -999.0);
+                }
+        }else if(strcmp(id,"hk_pressure_valid")==0){
+                // Pressure measurement validity flag
+                if (config.housekeeping.enabled && housekeeping_running) {
+                    pthread_mutex_lock(&housekeeping_data_mutex);
+                    sendInt(sockfd, latest_housekeeping_data.pressure_valid);
+                    pthread_mutex_unlock(&housekeeping_data_mutex);
+                } else {
+                    sendInt(sockfd, 0);
+                }
+        }else if(strcmp(id,"hk_ifamp_temp")==0){
+                // IF Amplifier temperature (AIN0)
+                if (config.housekeeping.enabled && housekeeping_running) {
+                    pthread_mutex_lock(&housekeeping_data_mutex);
+                    sendFloat(sockfd, latest_housekeeping_data.ifamp_temp_c);
+                    pthread_mutex_unlock(&housekeeping_data_mutex);
+                } else {
+                    sendFloat(sockfd, -999.0);
+                }
+        }else if(strcmp(id,"hk_lo_temp")==0){
+                // Local Oscillator temperature (AIN3)
+                if (config.housekeeping.enabled && housekeeping_running) {
+                    pthread_mutex_lock(&housekeeping_data_mutex);
+                    sendFloat(sockfd, latest_housekeeping_data.lo_temp_c);
+                    pthread_mutex_unlock(&housekeeping_data_mutex);
+                } else {
+                    sendFloat(sockfd, -999.0);
+                }
+        }else if(strcmp(id,"hk_tec_temp")==0){
+                // TEC temperature (AIN123)
+                if (config.housekeeping.enabled && housekeeping_running) {
+                    pthread_mutex_lock(&housekeeping_data_mutex);
+                    sendFloat(sockfd, latest_housekeeping_data.tec_temp_c);
+                    pthread_mutex_unlock(&housekeeping_data_mutex);
+                } else {
+                    sendFloat(sockfd, -999.0);
+                }
+        }else if(strcmp(id,"hk_backend_chassis_temp")==0){
+                // Backend Chassis temperature (AIN122)
+                if (config.housekeeping.enabled && housekeeping_running) {
+                    pthread_mutex_lock(&housekeeping_data_mutex);
+                    sendFloat(sockfd, latest_housekeeping_data.backend_chassis_temp_c);
+                    pthread_mutex_unlock(&housekeeping_data_mutex);
+                } else {
+                    sendFloat(sockfd, -999.0);
+                }
+        }else if(strcmp(id,"hk_nic_temp")==0){
+                // NIC temperature (AIN121)
+                if (config.housekeeping.enabled && housekeeping_running) {
+                    pthread_mutex_lock(&housekeeping_data_mutex);
+                    sendFloat(sockfd, latest_housekeeping_data.nic_temp_c);
+                    pthread_mutex_unlock(&housekeeping_data_mutex);
+                } else {
+                    sendFloat(sockfd, -999.0);
+                }
+        }else if(strcmp(id,"hk_rfsoc_chassis_temp")==0){
+                // RFSoC Chassis temperature (AIN126)
+                if (config.housekeeping.enabled && housekeeping_running) {
+                    pthread_mutex_lock(&housekeeping_data_mutex);
+                    sendFloat(sockfd, latest_housekeeping_data.rfsoc_chassis_temp_c);
+                    pthread_mutex_unlock(&housekeeping_data_mutex);
+                } else {
+                    sendFloat(sockfd, -999.0);
+                }
+        }else if(strcmp(id,"hk_rfsoc_chip_temp")==0){
+                // RFSoC Chip temperature (AIN127)
+                if (config.housekeeping.enabled && housekeeping_running) {
+                    pthread_mutex_lock(&housekeeping_data_mutex);
+                    sendFloat(sockfd, latest_housekeeping_data.rfsoc_chip_temp_c);
+                    pthread_mutex_unlock(&housekeeping_data_mutex);
+                } else {
+                    sendFloat(sockfd, -999.0);
+                }
+        }else if(strcmp(id,"hk_lna1_temp")==0){
+                // LNA1 temperature (AIN125)
+                if (config.housekeeping.enabled && housekeeping_running) {
+                    pthread_mutex_lock(&housekeeping_data_mutex);
+                    sendFloat(sockfd, latest_housekeeping_data.lna1_temp_c);
+                    pthread_mutex_unlock(&housekeeping_data_mutex);
+                } else {
+                    sendFloat(sockfd, -999.0);
+                }
+        }else if(strcmp(id,"hk_lna2_temp")==0){
+                // LNA2 temperature (AIN124)
+                if (config.housekeeping.enabled && housekeeping_running) {
+                    pthread_mutex_lock(&housekeeping_data_mutex);
+                    sendFloat(sockfd, latest_housekeeping_data.lna2_temp_c);
+                    pthread_mutex_unlock(&housekeeping_data_mutex);
+                } else {
+                    sendFloat(sockfd, -999.0);
+                }
+        }else if(strcmp(id,"hk_running")==0){
+                // Housekeeping system running status
+                sendInt(sockfd, housekeeping_running);
+        }else if(strcmp(id,"hk_powered")==0){
+                // Housekeeping system power status
+                sendInt(sockfd, housekeeping_on);
         }else{
 		fprintf(server_log,"[%ld][server.c][send_metric] Received unknown request: '%s'\n",time(NULL),id);
 		fflush(server_log);

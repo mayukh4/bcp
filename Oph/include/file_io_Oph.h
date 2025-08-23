@@ -178,6 +178,20 @@ typedef struct system_monitor_conf {
     int update_interval_sec;  // How often to update metrics (in seconds)
 } system_monitor_conf;
 
+typedef struct housekeeping_conf {
+    int enabled;
+    char *logfile;
+    char *data_path;
+    int pbob;
+    int relay;
+    int file_rotation_interval;  // File rotation interval in seconds (600 = 10 minutes)
+} housekeeping_conf;
+
+typedef struct heater_conf {
+    int pbob;
+    int relay;
+} heater_conf;
+
 typedef struct conf_params {
     struct main_conf main;
     struct bvexcam_conf bvexcam;
@@ -197,6 +211,8 @@ typedef struct conf_params {
     struct backend_conf backend;
     struct timing_box_conf timing_box;
     struct system_monitor_conf system_monitor;
+    struct housekeeping_conf housekeeping;
+    struct heater_conf heaters;
 } conf_params;
 
 extern struct conf_params config;

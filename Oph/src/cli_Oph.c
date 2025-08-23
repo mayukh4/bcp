@@ -15,6 +15,7 @@
 #include "cli_Oph.h"
 #include "bvexcam.h"
 #include "lens_adapter.h"
+extern int housekeeping_on;
 #include "astrometry.h"
 #include "accelerometer.h"
 #include "ec_motor.h"
@@ -25,9 +26,13 @@
 #include "gps_server.h"
 #include "starcam_downlink.h"
 #include "pbob.h"
+#include "housekeeping.h"
 
 FILE* main_log;
 FILE* cmd_log;
+extern int housekeeping_on;
+extern int housekeeping_running;
+extern int stop_housekeeping;
 int exiting = 0;
 extern int shutting_down; // set this to one to shutdown star camera
 extern int sockfd;
@@ -309,7 +314,14 @@ void exec_command(Packet pkt) {
 		// Put PBoB command here
 			set_toggle(config.bvexcam.pbob,config.bvexcam.relay);
 		//
-		if (bvexcam_log != NULL){
+		printf("Starting bvexcam log\n");
+        	write_to_log(main_log, "cli_Oph.c", "exec_command", "Starting bvexcam log");
+        	bvexcam_log = fopen(config.bvexcam.logfile, "w");
+
+        	if (bvexcam_log == NULL) {
+               		printf("Error opening bvexcam log %s: No such file or directory\n", config.bvexcam.logfile);
+                     	write_to_log(main_log, "main_Oph.c", "main", "Error opening bvexcam log: No such file or directory");
+        	}else{
             		init_bvexcam(bvexcam_log);
 
             // start star camera pthread
@@ -321,9 +333,7 @@ void exec_command(Packet pkt) {
 				bvexcam_on = 1;
                 		printf("Successfully started bvexcam.\n");
             		}
-        	}else{
-			printf("Invalid log file \n");
-		}
+        	}
 	}else if(!config.bvexcam.enabled) {
 		printf("bvexcam is not enabled\n");
 	}else if(bvexcam_on){
@@ -347,6 +357,7 @@ void exec_command(Packet pkt) {
 	}else if (!bvexcam_on){
 		printf("bvexcam already shutdown");
 	}
+	fclose(bvexcam_log);
     } else if (pkt.cmd_primary == focus_bvexcam) {
         if (config.bvexcam.enabled) {
             all_camera_params.focus_mode = 1;
@@ -354,6 +365,30 @@ void exec_command(Packet pkt) {
 	    printf("bvexcam auto-focus started\n");
         } else {
             printf("bvexcam is not enabled.\n");
+        }
+    } else if (pkt.cmd_primary == bvexcam_set_focus_inf){
+
+	if(config.bvexcam.enabled){
+		all_camera_params.focus_inf = 1;
+		if (adjustCameraHardware(bvexcam_log)==1){
+            		printf("Successfully adjusted camera hardware\n");
+        	}else{
+            		printf("Error adjusting camera hardware\n");
+        	}
+	}else{
+		printf("bvexcam is not enabled\n");
+	}
+
+    } else if(pkt.cmd_primary == bvexcam_set_focus){
+	if(config.bvexcam.enabled){
+		all_camera_params.focus_position = pkt.data[0];
+		if (adjustCameraHardware(bvexcam_log)==1){
+                        printf("Successfully adjusted camera hardware\n");
+                }else{
+                        printf("Error adjusting camera hardware\n");
+                }
+	}else{
+                printf("bvexcam is not enabled\n");
         }
     } else if (pkt.cmd_primary == bvexcam_solve_start){
 	if (config.bvexcam.enabled){
@@ -493,6 +528,7 @@ void exec_command(Packet pkt) {
 	scan_mode.time = 0;
 	scan_mode.on_position = 0;
 	scan_mode.offset = 0;
+	scan_mode.firsttime = 1;
 	axes_mode.mode = VEL;
 	axes_mode.vel = 0.0;
 	axes_mode.vel_az = 0.0;
@@ -520,7 +556,7 @@ void exec_command(Packet pkt) {
 			//
 			pthread_create(&lock_thread,NULL,do_lockpin,NULL);
 			while(!lockpin_on){
-                		if(lockpin_ready){
+                 		if(lockpin_ready){
                         		printf("Successfully started lockpin\n");
                         		write_to_log(main_log,"cli_Oph.c","exec_command","Successfully started lockpin");
 					lockpin_on = 1;
@@ -637,6 +673,95 @@ void exec_command(Packet pkt) {
 		}
 	}else{
 		printf("Receiver not enabled\n");
+	}
+    }else if (pkt.cmd_primary == cmd_housekeeping_on){
+	if(config.housekeeping.enabled){
+		if(!housekeeping_on){
+			printf("Powering on housekeeping system\n");
+			write_to_log(main_log,"cli_Oph.c","exec_command","Powering on housekeeping system");
+			set_toggle(config.housekeeping.pbob,config.housekeeping.relay);
+			housekeeping_on = 1;
+			printf("Housekeeping system powered on\n");
+		}else{
+			printf("Housekeeping system already powered on\n");
+		}
+	}else{
+		printf("Housekeeping system not enabled\n");
+	}
+    }else if (pkt.cmd_primary == cmd_housekeeping_off){
+	if(config.housekeeping.enabled){
+		if(housekeeping_on){
+			// Stop data collection first if running
+			if(housekeeping_running){
+				printf("Stopping housekeeping data collection before power off\n");
+				write_to_log(main_log,"cli_Oph.c","exec_command","Stopping housekeeping data collection before power off");
+				stop_housekeeping = 1;
+				pthread_join(housekeeping_thread, NULL);
+				stop_housekeeping = 0;
+				printf("Housekeeping data collection stopped\n");
+			}
+			
+			printf("Powering off housekeeping system\n");
+			write_to_log(main_log,"cli_Oph.c","exec_command","Powering off housekeeping system");
+			set_toggle(config.housekeeping.pbob,config.housekeeping.relay);
+			housekeeping_on = 0;
+			printf("Housekeeping system powered off\n");
+		}else{
+			printf("Housekeeping system already powered off\n");
+		}
+	}else{
+		printf("Housekeeping system not enabled\n");
+	}
+    }else if (pkt.cmd_primary == cmd_start_housekeeping){
+	if(config.housekeeping.enabled){
+		if(housekeeping_on && !housekeeping_running){
+			printf("Starting housekeeping data collection\n");
+			write_to_log(main_log,"cli_Oph.c","exec_command","Starting housekeeping data collection");
+			
+			// Initialize housekeeping system
+			if(init_housekeeping_system() == 0){
+				// Start housekeeping thread
+				if(pthread_create(&housekeeping_thread, NULL, run_housekeeping_thread, NULL) == 0){
+					// Wait for thread to start properly
+					sleep(2);
+					if(housekeeping_running){
+						printf("Housekeeping data collection started successfully\n");
+						write_to_log(main_log,"cli_Oph.c","exec_command","Housekeeping data collection started successfully");
+					}else{
+						printf("Failed to start housekeeping data collection\n");
+						write_to_log(main_log,"cli_Oph.c","exec_command","Failed to start housekeeping data collection");
+					}
+				}else{
+					printf("Failed to create housekeeping thread\n");
+					write_to_log(main_log,"cli_Oph.c","exec_command","Failed to create housekeeping thread");
+				}
+			}else{
+				printf("Failed to initialize housekeeping system\n");
+				write_to_log(main_log,"cli_Oph.c","exec_command","Failed to initialize housekeeping system");
+			}
+		}else if(!housekeeping_on){
+			printf("Housekeeping system not powered on. Use housekeeping_on command first.\n");
+		}else if(housekeeping_running){
+			printf("Housekeeping data collection already running\n");
+		}
+	}else{
+		printf("Housekeeping system not enabled\n");
+	}
+    }else if (pkt.cmd_primary == cmd_stop_housekeeping){
+	if(config.housekeeping.enabled){
+		if(housekeeping_running){
+			printf("Stopping housekeeping data collection\n");
+			write_to_log(main_log,"cli_Oph.c","exec_command","Stopping housekeeping data collection");
+			stop_housekeeping = 1;
+			pthread_join(housekeeping_thread, NULL);
+			stop_housekeeping = 0;
+			printf("Housekeeping data collection stopped\n");
+			write_to_log(main_log,"cli_Oph.c","exec_command","Housekeeping data collection stopped");
+		}else{
+			printf("Housekeeping data collection not running\n");
+		}
+	}else{
+		printf("Housekeeping system not enabled\n");
 	}
     }
 }

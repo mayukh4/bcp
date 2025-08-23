@@ -5,9 +5,12 @@
 #include <sys/time.h>
 #include <time.h>
 #include "coords.h"
+#include "gps_server.h"
+#include "file_io_Oph.h"
 
-double tel_lat = 44.298302778;
-double tel_lon = -76.432297222;
+extern conf_params config;
+
+extern GPS_data curr_gps;
 
 void get_UTC(char *buf,int size){
   struct timeval current_time;
@@ -103,6 +106,26 @@ double El_from_RaDec(double ra, double dec, double lat, double lon){
   
 }
 void AzEl_from_RaDec(SkyCoord *RaDec, SkyCoord *AzEl){
+    static int first_call = 1;
+    static double tel_lat = 0;
+    static double tel_lon = 0;
+
+    if(first_call){
+	if((curr_gps.gps_lat ==0) || (curr_gps.gps_lon == 0)){
+		tel_lat = config.bvexcam.lat;
+		tel_lon = config.bvexcam.lon;
+	}else{
+		tel_lat = curr_gps.gps_lat;
+		tel_lon = curr_gps.gps_lon;
+	}
+	first_call = 0;
+    }else{
+	if((curr_gps.gps_lat !=0) && (curr_gps.gps_lon !=0)){
+		tel_lat = curr_gps.gps_lat;
+		tel_lon = curr_gps.gps_lon;
+	}
+    }
+
     AzEl->lon = Az_from_RaDec(RaDec->lon,RaDec->lat,tel_lat,tel_lon);
     AzEl->lat = El_from_RaDec(RaDec->lon,RaDec->lat,tel_lat,tel_lon);
     strcpy(AzEl->type,"AzEl");

@@ -20,6 +20,7 @@
 #include "server.h"
 #include "pbob.h"
 #include "system_monitor.h"
+#include "housekeeping.h"
 
 // This is the main struct that stores all the config parameters
 struct conf_params config;
@@ -55,6 +56,7 @@ extern pthread_t astro_thread_id;
 pthread_t gps_server_thread;
 pthread_t server_thread;
 pthread_t pbob_thread;
+extern FILE* housekeeping_log;
 
 int main(int argc, char* argv[]) {
     printf("This is BCP on Ophiuchus\n");
@@ -108,17 +110,6 @@ int main(int argc, char* argv[]) {
 			}
 		}
 	}
-    }
-    if (config.bvexcam.enabled){
-        printf("Starting bvexcam log\n");
-        write_to_log(main_log, "main_Oph.c", "main", "Starting bvexcam log");
-        bvexcam_log = fopen(config.bvexcam.logfile, "w");
-
-        if (bvexcam_log == NULL) {
-               printf("Error opening bvexcam log %s: No such file or directory\n", config.bvexcam.logfile);
-                      write_to_log(main_log, "main_Oph.c", "main", "Error opening bvexcam log: No such file or directory");
-        }
-
     }
 
     // Initialize starcam downlink if enabled
@@ -269,6 +260,21 @@ int main(int argc, char* argv[]) {
     	}
     }
     
+    // Start housekeeping log if enabled (housekeeping system itself is started via commands)
+    if (config.housekeeping.enabled){
+	printf("Starting housekeeping log....\n");
+	write_to_log(main_log,"main_Oph.c","main","Starting housekeeping log");
+	housekeeping_log = fopen(config.housekeeping.logfile,"w");
+	if(housekeeping_log == NULL){
+		printf("Error starting housekeeping log %s: No such file or directory \n", config.housekeeping.logfile);
+		write_to_log(main_log, "main_Oph.c", "main", "Error opening housekeeping log: No such file or directory");
+	}else{
+		printf("Successfully started housekeeping log\n");
+		write_to_log(main_log,"main_Oph.c","main","Successfully started housekeeping log");
+		write_to_log(housekeeping_log,"main_Oph.c","main","Housekeeping log initialized");
+	}
+    }
+    
     printf("\n");
     do_commands();
 
@@ -303,10 +309,9 @@ int main(int argc, char* argv[]) {
 		}
 		//Put PBoB command here
                 set_toggle(config.bvexcam.pbob,config.bvexcam.relay);
+		fclose(bvexcam_log);
 		//
         }
-
-        fclose(bvexcam_log);
     }
 
     /* Shutdown accelerometer if it was enabled
@@ -396,6 +401,20 @@ int main(int argc, char* argv[]) {
         shutdown_system_monitor();
         printf("System monitor shutdown complete.\n");
         write_to_log(main_log, "main_Oph.c", "main", "System monitor shutdown complete");
+    }
+
+    // Shutdown housekeeping if it was enabled and running
+    if (config.housekeeping.enabled) {
+        if(housekeeping_running || housekeeping_on){
+            printf("Shutting down housekeeping system\n");
+            write_to_log(main_log, "main_Oph.c", "main", "Shutting down housekeeping system");
+            shutdown_housekeeping();
+            printf("Housekeeping system shutdown complete.\n");
+            write_to_log(main_log, "main_Oph.c", "main", "Housekeeping system shutdown complete");
+        }
+        if(housekeeping_log){
+            fclose(housekeeping_log);
+        }
     }
 
     // Shutdown starcam downlink if it was enabled

@@ -33,6 +33,7 @@ typedef struct{
 
 typedef struct{
 	int mode;
+	int firsttime;
 	double start_el;
 	double stop_el;
 	double vel;
